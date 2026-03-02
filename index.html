@@ -1,12 +1,92 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>勤務シフト → Googleカレンダー</title>
+  <style>
+    body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans JP", sans-serif; margin: 0; background: #f6f7fb; }
+    header { padding: 16px; background: #ffffff; border-bottom: 1px solid #e5e7eb; }
+    h1 { margin: 0; font-size: 18px; }
+    main { padding: 16px; }
+    .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 14px; margin-bottom: 12px; }
+    .row { display: flex; justify-content: space-between; gap: 10px; font-size: 14px; }
+    .label { color: #6b7280; }
+    .value { font-weight: 600; }
+    button, .btn {
+      width: 100%; padding: 12px 14px; border-radius: 12px; border: 1px solid #d1d5db;
+      background: #111827; color: #fff; font-size: 15px; font-weight: 700;
+    }
+    .btn-sub { margin-top: 10px; background: #fff; color: #111827; }
+    .note { color:#6b7280; font-size: 12px; line-height: 1.5; margin-top: 8px; }
+    input[type="month"]{ width: 100%; padding: 10px 12px; border-radius: 12px; border: 1px solid #d1d5db; background:#fff; font-size: 15px; }
+  </style>
 </head>
 <body>
-  <h1>勤務シフト → Googleカレンダー</h1>
-  <p>GitHub Pagesで表示テスト中です。</p>
+  <header>
+    <h1>勤務シフト → Googleカレンダー</h1>
+  </header>
+
+  <main>
+    <div class="card">
+      <div class="row">
+        <div class="label">対象月</div>
+        <div class="value" id="monthLabel">未選択</div>
+      </div>
+      <div style="height:10px"></div>
+      <input id="monthInput" type="month" />
+      <div class="note">※まず対象月を選んでください（例：2026-03）</div>
+    </div>
+
+    <div class="card">
+      <div class="row">
+        <div class="label">使用中の勤務マスタ</div>
+        <div class="value" id="masterLabel">（未設定）</div>
+      </div>
+      <div class="note">
+        ダイヤ改正（年2回）時にだけ更新します。<br />
+        ふだんは意識しなくてOKです。
+      </div>
+      <button class="btn-sub" type="button" id="btnMaster">勤務マスタを更新（準備中）</button>
+    </div>
+
+    <div class="card">
+      <button type="button" id="btnImage">シフト表の画像を選択（準備中）</button>
+      <div class="note">
+        画像 → OCR → プレビューで確認 → CSV作成 → Googleカレンダーにインポート、の流れで進めます。<br />
+        「－」は非番として扱い、予定は作りません。
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const monthInput = document.getElementById("monthInput");
+    const monthLabel = document.getElementById("monthLabel");
+    const masterLabel = document.getElementById("masterLabel");
+
+    // 初期表示：今月を入れておく
+    const now = new Date();
+    const ym = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+    monthInput.value = ym;
+    monthLabel.textContent = `${now.getFullYear()}年${now.getMonth()+1}月`;
+
+    // 仮：マスタ名（あとでIndexedDB保存に変える）
+    masterLabel.textContent = "未設定（次のステップで実装）";
+
+    monthInput.addEventListener("change", () => {
+      const v = monthInput.value; // "YYYY-MM"
+      if (!v) { monthLabel.textContent = "未選択"; return; }
+      const [y, m] = v.split("-");
+      monthLabel.textContent = `${y}年${Number(m)}月`;
+    });
+
+    document.getElementById("btnMaster").addEventListener("click", () => {
+      alert("ここは次のステップで実装します（勤務マスタの読み込み）。");
+    });
+
+    document.getElementById("btnImage").addEventListener("click", () => {
+      alert("ここは次のステップで実装します（画像選択→OCR）。");
+    });
+  </script>
 </body>
 </html>
