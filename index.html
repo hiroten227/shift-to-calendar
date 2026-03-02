@@ -60,33 +60,45 @@
   </main>
 
   <script>
-    const monthInput = document.getElementById("monthInput");
-    const monthLabel = document.getElementById("monthLabel");
-    const masterLabel = document.getElementById("masterLabel");
+  const monthInput = document.getElementById("monthInput");
+  const monthLabel = document.getElementById("monthLabel");
+  const masterLabel = document.getElementById("masterLabel");
 
-    // 初期表示：今月を入れておく
-    const now = new Date();
-    const ym = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
-    monthInput.value = ym;
-    monthLabel.textContent = `${now.getFullYear()}年${now.getMonth()+1}月`;
+  // 対象月 初期表示
+  const now = new Date();
+  const ym = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  monthInput.value = ym;
+  monthLabel.textContent = `${now.getFullYear()}年${now.getMonth()+1}月`;
 
-    // 仮：マスタ名（あとでIndexedDB保存に変える）
-    masterLabel.textContent = "未設定（次のステップで実装）";
+  monthInput.addEventListener("change", () => {
+    const v = monthInput.value;
+    if (!v) return;
+    const [y, m] = v.split("-");
+    monthLabel.textContent = `${y}年${Number(m)}月`;
+  });
 
-    monthInput.addEventListener("change", () => {
-      const v = monthInput.value; // "YYYY-MM"
-      if (!v) { monthLabel.textContent = "未選択"; return; }
-      const [y, m] = v.split("-");
-      monthLabel.textContent = `${y}年${Number(m)}月`;
+  // ===== 勤務マスタを読み込む =====
+  fetch("master.json")
+    .then(res => {
+      if (!res.ok) throw new Error("master.jsonが読めません");
+      return res.json();
+    })
+    .then(master => {
+      masterLabel.textContent = master.meta.name;
+      console.log("勤務マスタ読み込み成功", master);
+    })
+    .catch(err => {
+      masterLabel.textContent = "勤務マスタ読み込み失敗";
+      console.error(err);
     });
 
-    document.getElementById("btnMaster").addEventListener("click", () => {
-      alert("ここは次のステップで実装します（勤務マスタの読み込み）。");
-    });
+  document.getElementById("btnMaster").addEventListener("click", () => {
+    alert("現在使用中の勤務マスタを表示しています。更新機能は次に作ります。");
+  });
 
-    document.getElementById("btnImage").addEventListener("click", () => {
-      alert("ここは次のステップで実装します（画像選択→OCR）。");
-    });
-  </script>
+  document.getElementById("btnImage").addEventListener("click", () => {
+    alert("次のステップで画像読み込みを実装します。");
+  });
+</script>
 </body>
 </html>
