@@ -29,7 +29,9 @@
     button{
       width:100%; padding:12px 14px; border-radius:12px; border:1px solid #d1d5db;
       background:#111827; color:#fff; font-size:15px; font-weight:900;
+      cursor:pointer;
     }
+    button:disabled { opacity:0.5; cursor:not-allowed; }
     .btn-sub{ background:#fff; color:#111827; }
     .grid{ display:grid; gap:10px; }
     .pill{
@@ -41,6 +43,7 @@
     .pill.warn{ border-color:#fde68a; background:#fffbeb; }
     .pill.off{ border-color:#e5e7eb; background:#f9fafb; color:#374151; }
     .pill.err{ border-color:#fecaca; background:#fef2f2; }
+    .divider{ border-top:1px solid var(--line); margin-top:10px; padding-top:10px; }
     .item{ padding:10px 0; border-top:1px solid var(--line); }
     .item:first-child{ border-top:none; padding-top:0; }
     .mono{ font-family: ui-monospace, Menlo, Consolas, monospace; }
@@ -63,6 +66,7 @@
     </div>
     <div style="height:10px"></div>
     <input id="monthInput" type="month" />
+    <div class="note">※CSVのファイル名に使います（例：2026-03）</div>
   </div>
 
   <!-- 勤務マスタ -->
@@ -72,22 +76,46 @@
       <div class="value" id="masterLabel">読み込み中…</div>
     </div>
     <div class="note">
-      通常行路は自動入力。<br>
-      <b>臨◯◯</b>・<b>変◯◯</b>・未登録は手動入力。<br>
-      <b>変7d</b> のようにマスタ登録済みは自動。<br>
-      <b>-</b> は非番。
+      ✅ 自動：マスタにある行路（例：401 / 変7d）→ 時刻付きで出力<br>
+      ⚠ 下書き：臨/変/未登録 → 終日予定（説明付き）で出力<br>
+      — 非番（-）は出力しません
+    </div>
+    <div class="divider">
+      <div class="row" style="flex-wrap:wrap;">
+        <span class="pill ok">✅ 自動（時刻付き）</span>
+        <span class="pill.warn">⚠ 下書き（終日）</span>
+        <span class="pill.off">— 非番</span>
+        <span class="pill.err">❌ 未入力</span>
+      </div>
     </div>
   </div>
 
   <!-- テスト入力 -->
   <div class="card">
     <div style="font-weight:900">テスト入力（OCRの代わり）</div>
+    <div class="note" style="margin-top:6px;">
+      例：<span class="mono">401</span> / <span class="mono">-</span> / <span class="mono">臨1900</span> / <span class="mono">変401</span> / <span class="mono">変7d</span>
+    </div>
     <div class="grid" style="margin-top:10px;">
       <input id="dateInput" type="date" />
       <input id="dutyInput" type="text" placeholder="行路名（401 / - / 臨1900 / 変401 / 変7d）" />
-      <button id="btnAdd">追加</button>
-      <button id="btnClear" class="btn-sub">全消去</button>
+      <button id="btnAdd" type="button">追加</button>
+      <button id="btnClear" type="button" class="btn-sub">全消去</button>
     </div>
+  </div>
+
+  <!-- CSV出力 -->
+  <div class="card">
+    <div style="font-weight:900">CSV出力（Googleカレンダー用）</div>
+    <div class="note" style="margin-top:6px;">
+      Googleカレンダー → 設定 → インポート で取り込めます。<br>
+      ※⚠ は「終日予定（下書き）」として出力します。
+    </div>
+    <div class="grid" style="margin-top:10px;">
+      <button id="btnDownload" type="button" disabled>CSVをダウンロード</button>
+      <button id="btnCopyCsv" type="button" class="btn-sub" disabled>CSVをクリップボードにコピー</button>
+    </div>
+    <div class="note" id="csvHint"></div>
   </div>
 
   <!-- プレビュー -->
@@ -99,7 +127,10 @@
 </main>
 
 <script>
-/* ========= 初期設定 ========= */
+/* ========= 定数（確定文言） ========= */
+const DRAFT_DESCRIPTION = "時刻未確定（臨行路／変行路）\n確定後、時間を修正してください";
+
+/* ========= 要素 ========= */
 const monthInput = document.getElementById("monthInput");
 const monthLabel = document.getElementById("monthLabel");
 const masterLabel = document.getElementById("masterLabel");
@@ -108,85 +139,249 @@ const dutyInput = document.getElementById("dutyInput");
 const btnAdd = document.getElementById("btnAdd");
 const btnClear = document.getElementById("btnClear");
 const previewArea = document.getElementById("previewArea");
+const btnDownload = document.getElementById("btnDownload");
+const btnCopyCsv = document.getElementById("btnCopyCsv");
+const csvHint = document.getElementById("csvHint");
 
+/* ========= 状態 ========= */
 let master = null;
-let items = [];
+let items = []; // {date:"YYYY-MM-DD", duty:"xxx"}
 
-/* ========= 日付初期化 ========= */
+/* ========= 初期表示 ========= */
 const now = new Date();
 monthInput.value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
 monthLabel.textContent = `${now.getFullYear()}年${now.getMonth()+1}月`;
 dateInput.value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
 
 monthInput.addEventListener("change", () => {
-  const [y,m] = monthInput.value.split("-");
+  const v = monthInput.value;
+  if (!v) { monthLabel.textContent = "未選択"; return; }
+  const [y,m] = v.split("-");
   monthLabel.textContent = `${y}年${Number(m)}月`;
 });
 
 /* ========= 勤務マスタ読込 ========= */
 fetch("master.json")
-  .then(r => r.json())
+  .then(r => {
+    if(!r.ok) throw new Error("master.jsonが読めません");
+    return r.json();
+  })
   .then(j => {
     master = j;
-    masterLabel.textContent = j.meta.name;
-    render();
+    masterLabel.textContent = j?.meta?.name ?? "勤務マスタ";
+    renderAll();
+  })
+  .catch(err => {
+    console.error(err);
+    masterLabel.textContent = "勤務マスタ読み込み失敗";
+    renderAll();
   });
 
-/* ========= 判定（完全版） ========= */
+/* ========= 文字正規化（全角→半角など） ========= */
+function norm(s){
+  return (s ?? "").toString().normalize("NFKC").trim();
+}
+
+/* ========= 日付処理 ========= */
+function addDaysYYYYMMDD(yyyyMMdd, delta){
+  const [y,m,d] = yyyyMMdd.split("-").map(Number);
+  const dt = new Date(y, m-1, d);
+  dt.setDate(dt.getDate() + delta);
+  return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
+}
+
+/* GoogleカレンダーCSV向け：日付は YYYY/MM/DD にしておく */
+function toYMDslash(yyyyMMdd){
+  const [y,m,d] = yyyyMMdd.split("-");
+  return `${y}/${m}/${d}`;
+}
+
+/* ========= 判定（確定仕様） ========= */
 function classifyDuty(raw){
-  const d = (raw || "").normalize("NFKC").trim(); // ★全角→半角
+  const d = norm(raw);
 
-  if(d==="") return {kind:"invalid", label:"未入力"};
-  if(d==="-"||d==="－"||d==="ー") return {kind:"off", label:"非番"};
+  if(d==="") return {kind:"invalid", label:"未入力", duty:""};
 
-  if(master?.duties?.[d]){
-    const def = master.duties[d];
-    if(def.off) return {kind:"off", label:"非番"};
-    return {kind:"auto", label:"自動", def};
+  // 非番（ハイフン系）
+  if(d==="-" || d==="－" || d==="ー") return {kind:"off", label:"非番（出力なし）", duty:"-"};
+
+  // ★最優先：勤務マスタ
+  const duties = master?.duties ?? {};
+  if(Object.prototype.hasOwnProperty.call(duties, d)){
+    const def = duties[d];
+    if(def?.off) return {kind:"off", label:"非番（出力なし）", duty:d};
+    return {kind:"auto", label:"自動（時刻付き）", duty:d, def};
   }
 
-  if(d.startsWith("臨")) return {kind:"manual", label:"臨時（手動）"};
-  if(d.startsWith("変")) return {kind:"manual", label:"変行路（手動）"};
-
-  return {kind:"manual", label:"未登録（手動）"};
+  // マスタに無いものは全部「下書き（終日）」へ
+  return {kind:"draft", label:"下書き（終日）", duty:d};
 }
 
-function fmt(def){
+function fmtTime(def){
   if(!def) return "";
-  return `${def.start} → ${def.end}${def.overnight?"（翌日）":""}`;
+  return `${def.start} → ${def.end}${def.overnight ? "（翌日）" : ""}`;
 }
 
-/* ========= 操作 ========= */
-btnAdd.onclick = ()=>{
-  const duty = dutyInput.value.normalize("NFKC").trim();
-  if(!dateInput.value || !duty) return alert("入力してください");
-  items.push({date:dateInput.value, duty});
-  dutyInput.value="";
-  render();
+/* ========= UI操作 ========= */
+btnAdd.onclick = () => {
+  const date = dateInput.value;
+  const duty = norm(dutyInput.value);
+  if(!date) return alert("日付を入れてください");
+  if(!duty) return alert("行路名を入れてください");
+
+  items.push({date, duty});
+  dutyInput.value = "";
+  renderAll();
 };
 
-btnClear.onclick = ()=>{
-  if(confirm("全て消しますか？")){
-    items=[]; render();
+btnClear.onclick = () => {
+  if(confirm("入力した内容を全て消します。よろしいですか？")){
+    items = [];
+    renderAll();
+  }
+};
+
+/* ========= CSV生成（Googleカレンダー用） =========
+   ヘッダーは一般的なGoogleカレンダー互換形式：
+   Subject,Start Date,Start Time,End Date,End Time,All Day Event,Description
+*/
+function csvEscape(value){
+  const s = (value ?? "").toString();
+  if (/[",\n]/.test(s)) return `"${s.replaceAll('"', '""')}"`;
+  return s;
+}
+
+function buildCsv(){
+  // 日付順に整列
+  const sorted = [...items].sort((a,b)=> a.date.localeCompare(b.date));
+
+  const rows = [];
+  rows.push(["Subject","Start Date","Start Time","End Date","End Time","All Day Event","Description"]);
+
+  for(const it of sorted){
+    const c = classifyDuty(it.duty);
+
+    if(c.kind === "invalid") continue;
+    if(c.kind === "off") continue; // 非番は出力しない
+
+    if(c.kind === "auto"){
+      const startDate = it.date;
+      const endDate = c.def?.overnight ? addDaysYYYYMMDD(it.date, 1) : it.date;
+
+      rows.push([
+        c.duty,                         // Subject
+        toYMDslash(startDate),          // Start Date
+        c.def.start ?? "",              // Start Time
+        toYMDslash(endDate),            // End Date
+        c.def.end ?? "",                // End Time
+        "False",                        // All Day Event
+        ""                              // Description（空でOK）
+      ]);
+      continue;
+    }
+
+    // draft（臨/変/未登録）：終日下書き
+    rows.push([
+      c.duty,                   // Subject
+      toYMDslash(it.date),      // Start Date
+      "",                       // Start Time
+      toYMDslash(it.date),      // End Date
+      "",                       // End Time
+      "True",                   // All Day Event
+      DRAFT_DESCRIPTION         // Description
+    ]);
+  }
+
+  // CSV文字列化
+  const lines = rows.map(cols => cols.map(csvEscape).join(","));
+  return lines.join("\n");
+}
+
+/* ========= CSVダウンロード ========= */
+function downloadText(filename, text){
+  const blob = new Blob([text], {type:"text/csv;charset=utf-8"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+btnDownload.onclick = () => {
+  const csv = buildCsv();
+  const ym = monthInput.value || "shift";
+  const filename = `shift_${ym}.csv`;
+  downloadText(filename, csv);
+};
+
+btnCopyCsv.onclick = async () => {
+  try{
+    const csv = buildCsv();
+    await navigator.clipboard.writeText(csv);
+    alert("CSVをコピーしました。");
+  }catch(e){
+    alert("コピーできませんでした（ブラウザ制限の可能性）。ダウンロードをご利用ください。");
   }
 };
 
 /* ========= 表示 ========= */
-function render(){
+function badge(kind, label){
+  if(kind==="auto") return `<span class="pill ok">✅ ${label}</span>`;
+  if(kind==="draft") return `<span class="pill warn">⚠ ${label}</span>`;
+  if(kind==="off") return `<span class="pill off">— ${label}</span>`;
+  return `<span class="pill err">❌ ${label}</span>`;
+}
+
+function escapeHtml(s){
+  return (s ?? "").toString()
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#039;");
+}
+
+function renderAll(){
+  // プレビュー
   if(!items.length){
-    previewArea.textContent="まだ入力がありません。";
-    return;
+    previewArea.textContent = "まだ入力がありません。";
+  }else{
+    const sorted = [...items].sort((a,b)=>a.date.localeCompare(b.date));
+    previewArea.innerHTML = sorted.map(it=>{
+      const c = classifyDuty(it.duty);
+      const detail =
+        c.kind==="auto" ? fmtTime(c.def) :
+        c.kind==="draft" ? "終日（下書き）／説明あり" :
+        c.kind==="off" ? "非番（出力なし）" : "—";
+      return `
+        <div class="item">
+          <div class="row">
+            <div class="value">${escapeHtml(it.date)}</div>
+            <div>${badge(c.kind, c.label)}</div>
+          </div>
+          <div style="margin-top:6px;">
+            行路名：<b class="mono">${escapeHtml(norm(it.duty))}</b><br>
+            <span class="small">${escapeHtml(detail)}</span>
+          </div>
+        </div>
+      `;
+    }).join("");
   }
-  previewArea.innerHTML = items.map(it=>{
-    const c = classifyDuty(it.duty);
-    return `
-      <div class="item">
-        <b>${it.date}</b> / <span class="mono">${it.duty}</span><br>
-        ${c.kind==="auto" ? `✅ ${fmt(c.def)}` :
-          c.kind==="off" ? "— 非番" :
-          "⚠ 手動入力"}
-      </div>`;
-  }).join("");
+
+  // CSVボタン
+  const canExport = items.length > 0;
+  btnDownload.disabled = !canExport;
+  btnCopyCsv.disabled = !canExport;
+
+  if(!canExport){
+    csvHint.textContent = "※入力が1件以上あるとCSVを作れます。";
+  }else{
+    const ym = monthInput.value || "（未選択）";
+    csvHint.textContent = `※ファイル名：shift_${ym}.csv`;
+  }
 }
 </script>
 </body>
