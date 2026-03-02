@@ -5,21 +5,40 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>勤務シフト → Googleカレンダー</title>
   <style>
-    body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans JP", sans-serif; margin: 0; background: #f6f7fb; }
-    header { padding: 16px; background: #ffffff; border-bottom: 1px solid #e5e7eb; }
-    h1 { margin: 0; font-size: 18px; }
-    main { padding: 16px; }
-    .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 14px; margin-bottom: 12px; }
-    .row { display: flex; justify-content: space-between; gap: 10px; font-size: 14px; }
-    .label { color: #6b7280; }
-    .value { font-weight: 600; }
-    button, .btn {
-      width: 100%; padding: 12px 14px; border-radius: 12px; border: 1px solid #d1d5db;
-      background: #111827; color: #fff; font-size: 15px; font-weight: 700;
+    :root { --bg:#f6f7fb; --card:#fff; --line:#e5e7eb; --text:#111827; --muted:#6b7280; }
+    body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans JP", sans-serif; margin:0; background:var(--bg); color:var(--text); }
+    header { padding:16px; background:#fff; border-bottom:1px solid var(--line); }
+    h1 { margin:0; font-size:18px; }
+    main { padding:16px; display:grid; gap:12px; max-width:720px; margin:0 auto; }
+    .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px; }
+    .row { display:flex; justify-content:space-between; gap:10px; font-size:14px; align-items:center; }
+    .label { color:var(--muted); }
+    .value { font-weight:700; }
+    .note { color:var(--muted); font-size:12px; line-height:1.5; margin-top:8px; }
+    input[type="month"], input[type="date"], input[type="text"]{
+      width:100%; padding:10px 12px; border-radius:12px; border:1px solid #d1d5db; background:#fff; font-size:15px;
+      box-sizing:border-box;
     }
-    .btn-sub { margin-top: 10px; background: #fff; color: #111827; }
-    .note { color:#6b7280; font-size: 12px; line-height: 1.5; margin-top: 8px; }
-    input[type="month"]{ width: 100%; padding: 10px 12px; border-radius: 12px; border: 1px solid #d1d5db; background:#fff; font-size: 15px; }
+    button {
+      width:100%; padding:12px 14px; border-radius:12px; border:1px solid #d1d5db;
+      background:#111827; color:#fff; font-size:15px; font-weight:800;
+    }
+    .btn-sub { background:#fff; color:#111827; }
+    .grid { display:grid; gap:10px; }
+    .pill {
+      display:inline-flex; align-items:center; gap:6px;
+      font-size:12px; padding:4px 10px; border-radius:999px; border:1px solid var(--line);
+      background:#fff; color:var(--text);
+    }
+    .pill.ok { border-color:#bbf7d0; background:#f0fdf4; }
+    .pill.warn { border-color:#fde68a; background:#fffbeb; }
+    .pill.off { border-color:#e5e7eb; background:#f9fafb; color:#374151; }
+    .pill.err { border-color:#fecaca; background:#fef2f2; }
+    .divider { border-top:1px solid var(--line); margin-top:10px; padding-top:10px; }
+    .item { padding:10px 0; border-top:1px solid var(--line); }
+    .item:first-child { border-top:none; padding-top:0; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    .small { font-size:12px; color:var(--muted); }
   </style>
 </head>
 <body>
@@ -28,6 +47,7 @@
   </header>
 
   <main>
+    <!-- 対象月 -->
     <div class="card">
       <div class="row">
         <div class="label">対象月</div>
@@ -38,67 +58,214 @@
       <div class="note">※まず対象月を選んでください（例：2026-03）</div>
     </div>
 
+    <!-- 勤務マスタ -->
     <div class="card">
       <div class="row">
         <div class="label">使用中の勤務マスタ</div>
-        <div class="value" id="masterLabel">（未設定）</div>
+        <div class="value" id="masterLabel">読み込み中…</div>
       </div>
       <div class="note">
-        ダイヤ改正（年2回）時にだけ更新します。<br />
-        ふだんは意識しなくてOKです。
+        通常行路はマスタから出退勤を自動で入れます。<br/>
+        <b>臨◯◯◯◯</b>・<b>変◯◯</b>・マスタに無い行路は「手動入力」扱いにします。<br/>
+        「<b>-</b>」は非番（予定なし）です。
       </div>
-      <button class="btn-sub" type="button" id="btnMaster">勤務マスタを更新（準備中）</button>
+      <div class="divider">
+        <div class="row">
+          <span class="pill ok">✅ 自動（マスタ）</span>
+          <span class="pill warn">⚠ 手動入力</span>
+          <span class="pill off">— 非番</span>
+          <span class="pill err">❌ 未入力</span>
+        </div>
+      </div>
     </div>
 
+    <!-- テスト入力（OCRの代わり） -->
     <div class="card">
-      <button type="button" id="btnImage">シフト表の画像を選択（準備中）</button>
+      <div style="font-weight:800; margin-bottom:8px;">テスト入力（OCRの代わり）</div>
+      <div class="note" style="margin-top:0;">
+        例：<span class="mono">401</span> / <span class="mono">-</span> / <span class="mono">臨1900</span> / <span class="mono">変401</span> / <span class="mono">変7d</span>
+      </div>
+
+      <div class="grid" style="margin-top:10px;">
+        <input id="dateInput" type="date" />
+        <input id="dutyInput" type="text" placeholder="行路名（例：401 / - / 臨1900 / 変401）" />
+        <button type="button" id="btnAdd">追加</button>
+        <button type="button" class="btn-sub" id="btnClear">全消去</button>
+      </div>
+
       <div class="note">
-        画像 → OCR → プレビューで確認 → CSV作成 → Googleカレンダーにインポート、の流れで進めます。<br />
-        「－」は非番として扱い、予定は作りません。
+        ※ここで動けば、次に「画像→OCR」で同じデータを作るだけです。
+      </div>
+    </div>
+
+    <!-- プレビュー -->
+    <div class="card">
+      <div style="font-weight:800; margin-bottom:8px;">プレビュー</div>
+      <div id="previewArea" class="note">まだ入力がありません。</div>
+      <div class="note" style="margin-top:12px;">
+        ※この後、CSV出力・Googleカレンダー取り込みへ進みます（次ステップ）。
       </div>
     </div>
   </main>
 
   <script>
-  const monthInput = document.getElementById("monthInput");
-  const monthLabel = document.getElementById("monthLabel");
-  const masterLabel = document.getElementById("masterLabel");
+    // ====== 要素取得 ======
+    const monthInput = document.getElementById("monthInput");
+    const monthLabel = document.getElementById("monthLabel");
+    const masterLabel = document.getElementById("masterLabel");
 
-  // 対象月 初期表示
-  const now = new Date();
-  const ym = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
-  monthInput.value = ym;
-  monthLabel.textContent = `${now.getFullYear()}年${now.getMonth()+1}月`;
+    const dateInput = document.getElementById("dateInput");
+    const dutyInput = document.getElementById("dutyInput");
+    const btnAdd = document.getElementById("btnAdd");
+    const btnClear = document.getElementById("btnClear");
+    const previewArea = document.getElementById("previewArea");
 
-  monthInput.addEventListener("change", () => {
-    const v = monthInput.value;
-    if (!v) return;
-    const [y, m] = v.split("-");
-    monthLabel.textContent = `${y}年${Number(m)}月`;
-  });
+    // ====== 状態 ======
+    let master = null;  // master.jsonの内容
+    let items = [];     // {date:"YYYY-MM-DD", duty:"401"} の配列
 
-  // ===== 勤務マスタを読み込む =====
-  fetch("master.json")
-    .then(res => {
-      if (!res.ok) throw new Error("master.jsonが読めません");
-      return res.json();
-    })
-    .then(master => {
-      masterLabel.textContent = master.meta.name;
-      console.log("勤務マスタ読み込み成功", master);
-    })
-    .catch(err => {
-      masterLabel.textContent = "勤務マスタ読み込み失敗";
-      console.error(err);
+    // ====== 初期表示（対象月＆日付） ======
+    const now = new Date();
+    const ym = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+    monthInput.value = ym;
+    monthLabel.textContent = `${now.getFullYear()}年${now.getMonth()+1}月`;
+
+    const today = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+    dateInput.value = today;
+
+    monthInput.addEventListener("change", () => {
+      const v = monthInput.value; // "YYYY-MM"
+      if (!v) { monthLabel.textContent = "未選択"; return; }
+      const [y, m] = v.split("-");
+      monthLabel.textContent = `${y}年${Number(m)}月`;
     });
 
-  document.getElementById("btnMaster").addEventListener("click", () => {
-    alert("現在使用中の勤務マスタを表示しています。更新機能は次に作ります。");
-  });
+    // ====== 勤務マスタ読み込み ======
+    fetch("master.json")
+      .then(res => {
+        if (!res.ok) throw new Error("master.jsonが読めません");
+        return res.json();
+      })
+      .then(m => {
+        master = m;
+        masterLabel.textContent = master?.meta?.name ?? "勤務マスタ";
+        render();
+      })
+      .catch(err => {
+        console.error(err);
+        masterLabel.textContent = "勤務マスタ読み込み失敗";
+        render();
+      });
 
-  document.getElementById("btnImage").addEventListener("click", () => {
-    alert("次のステップで画像読み込みを実装します。");
-  });
-</script>
+    // ====== 判定（超重要） ======
+    // ルール：
+    // 1) まず master.duties に存在すれば、それを最優先（例外：変7dなど）
+    // 2) 無ければ、臨/変/未登録は手動入力
+    // 3) "-" は非番で予定を作らない
+    function classifyDuty(raw) {
+      const d = (raw || "").trim();
+
+      if (d === "") {
+        return { kind: "invalid", label: "未入力", duty: "" };
+      }
+
+      // 非番（ハイフン系）
+      if (d === "-" || d === "－" || d === "ー") {
+        return { kind: "off", label: "非番（予定なし）", duty: "-" };
+      }
+
+      // マスタ優先
+      const duties = master?.duties ?? {};
+      const inMaster = Object.prototype.hasOwnProperty.call(duties, d);
+      if (inMaster) {
+        const def = duties[d];
+        if (def?.off) return { kind: "off", label: "非番（予定なし）", duty: d };
+        return { kind: "auto", label: "自動（マスタ）", duty: d, def };
+      }
+
+      // マスタにない場合は推定
+      if (d.startsWith("臨")) return { kind: "manual", label: "臨時（手動入力）", duty: d };
+      if (d.startsWith("変")) return { kind: "manual", label: "変行路（手動入力）", duty: d };
+
+      return { kind: "manual", label: "未登録（手動入力）", duty: d };
+    }
+
+    function fmtTime(def) {
+      if (!def) return "";
+      const start = def.start ?? "";
+      const end = def.end ?? "";
+      const overnight = def.overnight ? "（翌日）" : "";
+      return `${start} → ${end}${overnight}`;
+    }
+
+    // ====== 追加・消去 ======
+    btnAdd.addEventListener("click", () => {
+      const date = dateInput.value;
+      const duty = dutyInput.value.trim();
+
+      if (!date) { alert("日付を入れてください"); return; }
+      if (!duty) { alert("行路名を入れてください"); return; }
+
+      items.push({ date, duty });
+      dutyInput.value = "";
+      render();
+    });
+
+    btnClear.addEventListener("click", () => {
+      if (!confirm("入力した内容を全て消します。よろしいですか？")) return;
+      items = [];
+      render();
+    });
+
+    // ====== プレビュー表示 ======
+    function badge(kind, label) {
+      if (kind === "auto") return `<span class="pill ok">✅ ${label}</span>`;
+      if (kind === "manual") return `<span class="pill warn">⚠ ${label}</span>`;
+      if (kind === "off") return `<span class="pill off">— ${label}</span>`;
+      return `<span class="pill err">❌ ${label}</span>`;
+    }
+
+    function render() {
+      if (!items.length) {
+        previewArea.innerHTML = "まだ入力がありません。";
+        return;
+      }
+
+      const sorted = [...items].sort((a,b) => a.date.localeCompare(b.date));
+
+      const html = sorted.map(it => {
+        const c = classifyDuty(it.duty);
+        const time =
+          c.kind === "auto" ? fmtTime(c.def) :
+          c.kind === "off" ? "（予定なし）" :
+          (c.kind === "manual" ? "出退勤：手動入力（次ステップで入力欄を付けます）" : "—");
+
+        return `
+          <div class="item">
+            <div class="row">
+              <div class="value">${it.date}</div>
+              <div>${badge(c.kind, c.label)}</div>
+            </div>
+            <div style="margin-top:6px;">
+              行路名：<b class="mono">${escapeHtml(it.duty)}</b><br/>
+              <span class="small">${escapeHtml(time)}</span>
+            </div>
+          </div>
+        `;
+      }).join("");
+
+      previewArea.innerHTML = html;
+    }
+
+    // HTMLエスケープ（安全のため）
+    function escapeHtml(s) {
+      return (s ?? "").toString()
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+  </script>
 </body>
 </html>
