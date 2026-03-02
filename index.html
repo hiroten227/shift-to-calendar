@@ -16,16 +16,17 @@
     }
     header { padding:16px; background:#fff; border-bottom:1px solid var(--line); }
     h1 { margin:0; font-size:18px; }
-    main { padding:16px; display:grid; gap:12px; max-width:720px; margin:0 auto; }
+    main { padding:16px; display:grid; gap:12px; max-width:820px; margin:0 auto; }
     .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px; }
-    .row { display:flex; justify-content:space-between; gap:10px; font-size:14px; align-items:center; }
+    .row { display:flex; justify-content:space-between; gap:10px; font-size:14px; align-items:center; flex-wrap:wrap; }
     .label { color:var(--muted); }
     .value { font-weight:800; }
     .note { color:var(--muted); font-size:12px; line-height:1.5; margin-top:8px; }
-    input[type="month"], input[type="date"], input[type="text"]{
+    input[type="month"], input[type="date"], input[type="text"], textarea{
       width:100%; padding:10px 12px; border-radius:12px; border:1px solid #d1d5db;
       background:#fff; font-size:15px; box-sizing:border-box;
     }
+    textarea { min-height: 120px; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px; }
     button{
       width:100%; padding:12px 14px; border-radius:12px; border:1px solid #d1d5db;
       background:#111827; color:#fff; font-size:15px; font-weight:900;
@@ -48,6 +49,36 @@
     .item:first-child{ border-top:none; padding-top:0; }
     .mono{ font-family: ui-monospace, Menlo, Consolas, monospace; }
     .small{ font-size:12px; color:var(--muted); }
+
+    .two-col { display:grid; grid-template-columns: 1fr; gap:10px; }
+    @media (min-width: 900px){
+      .two-col { grid-template-columns: 1fr 1fr; }
+    }
+
+    .table {
+      width:100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    .table th, .table td {
+      border-top: 1px solid var(--line);
+      padding: 8px;
+      vertical-align: top;
+    }
+    .table th { text-align:left; color: var(--muted); font-weight: 700; }
+    .chk { transform: scale(1.2); }
+    .progress {
+      height: 10px;
+      background: #eef2ff;
+      border: 1px solid #e5e7eb;
+      border-radius: 999px;
+      overflow: hidden;
+    }
+    .progress > div{
+      height: 100%;
+      width: 0%;
+      background: #111827;
+    }
   </style>
 </head>
 
@@ -66,7 +97,7 @@
     </div>
     <div style="height:10px"></div>
     <input id="monthInput" type="month" />
-    <div class="note">※CSVのファイル名に使います（例：2026-03）</div>
+    <div class="note">※抽出した「日付」をこの月に当てはめます（例：2026-03）</div>
   </div>
 
   <!-- 勤務マスタ -->
@@ -90,11 +121,51 @@
     </div>
   </div>
 
-  <!-- テスト入力 -->
+  <!-- OCR -->
   <div class="card">
-    <div style="font-weight:900">テスト入力（OCRの代わり）</div>
+    <div style="font-weight:900">写メ → OCR（Tesseract.js）</div>
     <div class="note" style="margin-top:6px;">
-      例：<span class="mono">401</span> / <span class="mono">-</span> / <span class="mono">臨1900</span> / <span class="mono">変401</span> / <span class="mono">変7d</span>
+      画像は外部に送信しません（端末内でOCR）。<br>
+      最初の実行時は日本語学習データの読み込みで少し時間がかかります。
+    </div>
+
+    <div class="grid" style="margin-top:10px;">
+      <input id="imgInput" type="file" accept="image/*" />
+      <button id="btnOcr" type="button" disabled>OCR実行</button>
+
+      <div class="row">
+        <div class="label">進捗</div>
+        <div class="value" id="ocrStatus">待機中</div>
+      </div>
+      <div class="progress"><div id="ocrBar"></div></div>
+
+      <div class="two-col" style="margin-top:10px;">
+        <div>
+          <div class="small" style="font-weight:900; color:#111827;">OCR生テキスト</div>
+          <textarea id="ocrText" placeholder="ここにOCR結果が出ます（そのまま確認用）"></textarea>
+          <div class="note">※文字化け・誤認識があるのは正常です。次の「抽出結果」で人の目チェックします。</div>
+        </div>
+
+        <div>
+          <div class="small" style="font-weight:900; color:#111827;">抽出結果（日付＋行路名）</div>
+          <div class="note" style="margin-top:4px;">
+            ここは「それっぽいもの」を拾います。チェックして反映してください。
+          </div>
+          <div id="extractArea" class="note" style="margin-top:8px;">まだ抽出がありません。</div>
+          <div class="grid" style="margin-top:10px;">
+            <button id="btnApplyExtract" type="button" class="btn-sub" disabled>チェックした分をプレビューに反映</button>
+            <button id="btnClearExtract" type="button" class="btn-sub" disabled>抽出結果を消す</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- テスト入力（補助） -->
+  <div class="card">
+    <div style="font-weight:900">手入力（補助・OCR漏れ用）</div>
+    <div class="note" style="margin-top:6px;">
+      OCRで拾えなかった分だけ、ここで補完できます。例：<span class="mono">401</span> / <span class="mono">-</span> / <span class="mono">臨1900</span> / <span class="mono">変401</span> / <span class="mono">変7d</span>
     </div>
     <div class="grid" style="margin-top:10px;">
       <input id="dateInput" type="date" />
@@ -126,6 +197,9 @@
 
 </main>
 
+<!-- Tesseract.js（CDN） -->
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+
 <script>
 /* ========= 定数（確定文言） ========= */
 const DRAFT_DESCRIPTION = "時刻未確定（臨行路／変行路）\n確定後、時間を修正してください";
@@ -134,18 +208,30 @@ const DRAFT_DESCRIPTION = "時刻未確定（臨行路／変行路）\n確定後
 const monthInput = document.getElementById("monthInput");
 const monthLabel = document.getElementById("monthLabel");
 const masterLabel = document.getElementById("masterLabel");
+
+const imgInput = document.getElementById("imgInput");
+const btnOcr = document.getElementById("btnOcr");
+const ocrStatus = document.getElementById("ocrStatus");
+const ocrBar = document.getElementById("ocrBar");
+const ocrText = document.getElementById("ocrText");
+const extractArea = document.getElementById("extractArea");
+const btnApplyExtract = document.getElementById("btnApplyExtract");
+const btnClearExtract = document.getElementById("btnClearExtract");
+
 const dateInput = document.getElementById("dateInput");
 const dutyInput = document.getElementById("dutyInput");
 const btnAdd = document.getElementById("btnAdd");
 const btnClear = document.getElementById("btnClear");
 const previewArea = document.getElementById("previewArea");
+
 const btnDownload = document.getElementById("btnDownload");
 const btnCopyCsv = document.getElementById("btnCopyCsv");
 const csvHint = document.getElementById("csvHint");
 
 /* ========= 状態 ========= */
 let master = null;
-let items = []; // {date:"YYYY-MM-DD", duty:"xxx"}
+let items = [];       // {date:"YYYY-MM-DD", duty:"xxx"}
+let extractRows = []; // {include:true, date:"YYYY-MM-DD", duty:"xxx", reason:"..."}
 
 /* ========= 初期表示 ========= */
 const now = new Date();
@@ -158,28 +244,17 @@ monthInput.addEventListener("change", () => {
   if (!v) { monthLabel.textContent = "未選択"; return; }
   const [y,m] = v.split("-");
   monthLabel.textContent = `${y}年${Number(m)}月`;
+  // 対象月が変わったら抽出もリセット（誤反映防止）
+  clearExtract();
 });
 
-/* ========= 勤務マスタ読込 ========= */
-fetch("master.json")
-  .then(r => {
-    if(!r.ok) throw new Error("master.jsonが読めません");
-    return r.json();
-  })
-  .then(j => {
-    master = j;
-    masterLabel.textContent = j?.meta?.name ?? "勤務マスタ";
-    renderAll();
-  })
-  .catch(err => {
-    console.error(err);
-    masterLabel.textContent = "勤務マスタ読み込み失敗";
-    renderAll();
-  });
-
-/* ========= 文字正規化（全角→半角など） ========= */
+/* ========= 文字正規化 ========= */
 function norm(s){
   return (s ?? "").toString().normalize("NFKC").trim();
+}
+function isLikelyTimeToken(s){
+  const t = norm(s);
+  return /^\d{1,2}:\d{2}$/.test(t) || /^\d{3,4}$/.test(t) && (Number(t) <= 2359);
 }
 
 /* ========= 日付処理 ========= */
@@ -189,115 +264,90 @@ function addDaysYYYYMMDD(yyyyMMdd, delta){
   dt.setDate(dt.getDate() + delta);
   return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
 }
-
-/* GoogleカレンダーCSV向け：日付は YYYY/MM/DD にしておく */
 function toYMDslash(yyyyMMdd){
   const [y,m,d] = yyyyMMdd.split("-");
   return `${y}/${m}/${d}`;
 }
+function ymdFromDay(day){
+  const ym = monthInput.value;
+  if(!ym) return null;
+  const [y,m] = ym.split("-").map(Number);
+  const d = Number(day);
+  if(!(d>=1 && d<=31)) return null;
+  const dt = new Date(y, m-1, d);
+  // 月が一致しているかチェック（31日などの誤差防止）
+  if(dt.getMonth() !== (m-1)) return null;
+  return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+}
+
+/* ========= 勤務マスタ読込 ========= */
+fetch("master.json")
+  .then(r => { if(!r.ok) throw new Error("master.jsonが読めません"); return r.json(); })
+  .then(j => { master = j; masterLabel.textContent = j?.meta?.name ?? "勤務マスタ"; renderAll(); })
+  .catch(err => { console.error(err); masterLabel.textContent = "勤務マスタ読み込み失敗"; renderAll(); });
 
 /* ========= 判定（確定仕様） ========= */
 function classifyDuty(raw){
   const d = norm(raw);
-
   if(d==="") return {kind:"invalid", label:"未入力", duty:""};
-
-  // 非番（ハイフン系）
   if(d==="-" || d==="－" || d==="ー") return {kind:"off", label:"非番（出力なし）", duty:"-"};
 
-  // ★最優先：勤務マスタ
   const duties = master?.duties ?? {};
   if(Object.prototype.hasOwnProperty.call(duties, d)){
     const def = duties[d];
     if(def?.off) return {kind:"off", label:"非番（出力なし）", duty:d};
     return {kind:"auto", label:"自動（時刻付き）", duty:d, def};
   }
-
-  // マスタに無いものは全部「下書き（終日）」へ
   return {kind:"draft", label:"下書き（終日）", duty:d};
 }
-
 function fmtTime(def){
   if(!def) return "";
   return `${def.start} → ${def.end}${def.overnight ? "（翌日）" : ""}`;
 }
 
-/* ========= UI操作 ========= */
-btnAdd.onclick = () => {
-  const date = dateInput.value;
-  const duty = norm(dutyInput.value);
-  if(!date) return alert("日付を入れてください");
-  if(!duty) return alert("行路名を入れてください");
-
-  items.push({date, duty});
-  dutyInput.value = "";
-  renderAll();
-};
-
-btnClear.onclick = () => {
-  if(confirm("入力した内容を全て消します。よろしいですか？")){
-    items = [];
-    renderAll();
-  }
-};
-
-/* ========= CSV生成（Googleカレンダー用） =========
-   ヘッダーは一般的なGoogleカレンダー互換形式：
-   Subject,Start Date,Start Time,End Date,End Time,All Day Event,Description
-*/
+/* ========= CSV生成 ========= */
 function csvEscape(value){
   const s = (value ?? "").toString();
   if (/[",\n]/.test(s)) return `"${s.replaceAll('"', '""')}"`;
   return s;
 }
-
 function buildCsv(){
-  // 日付順に整列
   const sorted = [...items].sort((a,b)=> a.date.localeCompare(b.date));
-
   const rows = [];
   rows.push(["Subject","Start Date","Start Time","End Date","End Time","All Day Event","Description"]);
 
   for(const it of sorted){
     const c = classifyDuty(it.duty);
-
     if(c.kind === "invalid") continue;
-    if(c.kind === "off") continue; // 非番は出力しない
+    if(c.kind === "off") continue;
 
     if(c.kind === "auto"){
       const startDate = it.date;
       const endDate = c.def?.overnight ? addDaysYYYYMMDD(it.date, 1) : it.date;
-
       rows.push([
-        c.duty,                         // Subject
-        toYMDslash(startDate),          // Start Date
-        c.def.start ?? "",              // Start Time
-        toYMDslash(endDate),            // End Date
-        c.def.end ?? "",                // End Time
-        "False",                        // All Day Event
-        ""                              // Description（空でOK）
+        c.duty,
+        toYMDslash(startDate),
+        c.def.start ?? "",
+        toYMDslash(endDate),
+        c.def.end ?? "",
+        "False",
+        ""
       ]);
-      continue;
+    } else {
+      rows.push([
+        c.duty,
+        toYMDslash(it.date),
+        "",
+        toYMDslash(it.date),
+        "",
+        "True",
+        DRAFT_DESCRIPTION
+      ]);
     }
-
-    // draft（臨/変/未登録）：終日下書き
-    rows.push([
-      c.duty,                   // Subject
-      toYMDslash(it.date),      // Start Date
-      "",                       // Start Time
-      toYMDslash(it.date),      // End Date
-      "",                       // End Time
-      "True",                   // All Day Event
-      DRAFT_DESCRIPTION         // Description
-    ]);
   }
 
-  // CSV文字列化
-  const lines = rows.map(cols => cols.map(csvEscape).join(","));
-  return lines.join("\n");
+  return rows.map(cols => cols.map(csvEscape).join(",")).join("\n");
 }
-
-/* ========= CSVダウンロード ========= */
 function downloadText(filename, text){
   const blob = new Blob([text], {type:"text/csv;charset=utf-8"});
   const url = URL.createObjectURL(blob);
@@ -310,13 +360,28 @@ function downloadText(filename, text){
   URL.revokeObjectURL(url);
 }
 
+/* ========= UI操作（手入力） ========= */
+btnAdd.onclick = () => {
+  const date = dateInput.value;
+  const duty = norm(dutyInput.value);
+  if(!date) return alert("日付を入れてください");
+  if(!duty) return alert("行路名を入れてください");
+
+  upsertItem(date, duty);
+  dutyInput.value = "";
+  renderAll();
+};
+btnClear.onclick = () => {
+  if(confirm("入力した内容を全て消します。よろしいですか？")){
+    items = [];
+    renderAll();
+  }
+};
 btnDownload.onclick = () => {
   const csv = buildCsv();
   const ym = monthInput.value || "shift";
-  const filename = `shift_${ym}.csv`;
-  downloadText(filename, csv);
+  downloadText(`shift_${ym}.csv`, csv);
 };
-
 btnCopyCsv.onclick = async () => {
   try{
     const csv = buildCsv();
@@ -327,6 +392,253 @@ btnCopyCsv.onclick = async () => {
   }
 };
 
+/* ========= upsert（同じ日付は上書き） ========= */
+function upsertItem(date, duty){
+  const idx = items.findIndex(x => x.date === date);
+  if(idx >= 0) items[idx] = {date, duty};
+  else items.push({date, duty});
+}
+
+/* ========= OCR ========= */
+imgInput.addEventListener("change", () => {
+  btnOcr.disabled = !(imgInput.files && imgInput.files[0]);
+});
+btnOcr.addEventListener("click", async () => {
+  const f = imgInput.files?.[0];
+  if(!f) return;
+
+  if(!monthInput.value){
+    alert("先に対象月を選んでください（例：2026-03）");
+    return;
+  }
+
+  setOcrUi(true, "OCR準備中…", 1);
+
+  try{
+    // 画像を縮小（スマホ負荷軽減）
+    const dataUrl = await fileToResizedDataUrl(f, 2000);
+
+    setOcrUi(true, "OCR実行中…（最初は少し時間がかかります）", 5);
+
+    const result = await Tesseract.recognize(
+      dataUrl,
+      "jpn",
+      {
+        logger: (m) => {
+          if(m.status){
+            // 進捗（0〜1）
+            const p = (typeof m.progress === "number") ? m.progress : null;
+            if(p !== null) setOcrUi(true, `${m.status}`, Math.floor(p * 100));
+            else setOcrUi(true, `${m.status}`, null);
+          }
+        },
+        // CDN上のworker/core/langを指定（GitHub Pagesで動く）
+        workerPath: "https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/worker.min.js",
+        corePath: "https://cdn.jsdelivr.net/npm/tesseract.js-core@5/tesseract-core.wasm.js",
+        langPath: "https://tessdata.projectnaptha.com/4.0.0"
+      }
+    );
+
+    const text = (result?.data?.text ?? "").trim();
+    ocrText.value = text;
+
+    // 抽出
+    extractRows = extractFromOcrText(text);
+    renderExtract();
+
+    setOcrUi(false, "完了", 100);
+    renderAll();
+  }catch(e){
+    console.error(e);
+    setOcrUi(false, "失敗（画像を明るく・まっすぐで再試行）", 0);
+    alert("OCRに失敗しました。画像を明るく・まっすぐ撮って再試行してください。");
+  }
+});
+
+function setOcrUi(running, status, percent){
+  ocrStatus.textContent = status ?? "";
+  if(typeof percent === "number"){
+    ocrBar.style.width = `${Math.max(0, Math.min(100, percent))}%`;
+  }
+  btnOcr.disabled = running || !(imgInput.files && imgInput.files[0]);
+}
+
+/* 画像をリサイズしてDataURLへ */
+function fileToResizedDataUrl(file, maxSize){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = reject;
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = reject;
+      img.onload = () => {
+        const w = img.width, h = img.height;
+        const scale = Math.min(1, maxSize / Math.max(w, h));
+        const nw = Math.round(w * scale);
+        const nh = Math.round(h * scale);
+        const canvas = document.createElement("canvas");
+        canvas.width = nw; canvas.height = nh;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, nw, nh);
+        resolve(canvas.toDataURL("image/jpeg", 0.92));
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+/* ========= OCRテキスト → 日付＋行路名 抽出（ゆるめ） ========= */
+function extractFromOcrText(text){
+  const t = norm(text)
+    .replaceAll("：", ":")
+    .replaceAll("／", "/")
+    .replaceAll("　", " ")
+    .replace(/\s+/g, " ");
+
+  // パターン候補：
+  //  3/1 401
+  //  3/1:401
+  //  1 401
+  //  1日 401
+  //  1  -  など
+  const rows = [];
+
+  // まずは「3/1」形式
+  const reMD = /(\d{1,2})\/(\d{1,2})\s*[:：]?\s*([^\s]+)/g;
+  let m;
+  while((m = reMD.exec(t)) !== null){
+    const month = Number(m[1]);
+    const day = Number(m[2]);
+    const duty = norm(m[3]);
+    const ym = monthInput.value;
+    const [y, selectedM] = ym.split("-").map(Number);
+
+    // 対象月と一致する月だけ採用（誤爆防止）
+    if(month !== selectedM) continue;
+
+    const date = ymdFromDay(day);
+    if(!date) continue;
+    if(isLikelyTimeToken(duty)) continue;
+
+    rows.push({ include:true, date, duty, reason:"M/D形式" });
+  }
+
+  // 次に「日だけ」形式（誤爆しやすいので控えめ）
+  // 「 1 401 」みたいに、日(1-31)の直後に行路っぽいトークンが来るもの
+  const reD = /(?:^| )(\d{1,2})\s*[:：]?\s*([^\s]+)/g;
+  while((m = reD.exec(t)) !== null){
+    const day = Number(m[1]);
+    const duty = norm(m[2]);
+    const date = ymdFromDay(day);
+    if(!date) continue;
+
+    // すでに同日が入っているならスキップ（M/Dの方を優先）
+    if(rows.some(r => r.date === date)) continue;
+
+    // 行路っぽさ判定（雑に）
+    // 例：401 / 401-1 / 変7d / 臨1900 / - などを許可
+    const looksDuty =
+      duty === "-" ||
+      duty.startsWith("臨") ||
+      duty.startsWith("変") ||
+      /^[0-9]{3,4}(-[0-9]{1,2})?$/.test(duty) ||
+      /^[0-9]{1,4}[A-Za-z]$/i.test(duty);
+
+    if(!looksDuty) continue;
+    if(isLikelyTimeToken(duty)) continue;
+
+    rows.push({ include:true, date, duty, reason:"日＋行路っぽい" });
+  }
+
+  // 同日重複は最後を優先
+  const map = new Map();
+  for(const r of rows) map.set(r.date, r);
+  return [...map.values()].sort((a,b)=>a.date.localeCompare(b.date));
+}
+
+function renderExtract(){
+  if(!extractRows.length){
+    extractArea.innerHTML = "まだ抽出がありません。";
+    btnApplyExtract.disabled = true;
+    btnClearExtract.disabled = true;
+    return;
+  }
+
+  const html = `
+    <table class="table">
+      <thead>
+        <tr>
+          <th style="width:48px;">反映</th>
+          <th>日付</th>
+          <th>行路名</th>
+          <th style="width:110px;">根拠</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${extractRows.map((r, idx) => `
+          <tr>
+            <td><input class="chk" type="checkbox" data-idx="${idx}" ${r.include ? "checked" : ""}></td>
+            <td class="mono">${escapeHtml(r.date)}</td>
+            <td>
+              <input type="text" data-duty="${idx}" value="${escapeHtml(r.duty)}" />
+            </td>
+            <td class="small">${escapeHtml(r.reason)}</td>
+          </tr>
+        `).join("")}
+      </tbody>
+    </table>
+    <div class="note">※行路名が違う場合は、この表で直してから反映してください。</div>
+  `;
+  extractArea.innerHTML = html;
+
+  // checkbox
+  extractArea.querySelectorAll('input[type="checkbox"][data-idx]').forEach(cb => {
+    cb.addEventListener("change", (e) => {
+      const i = Number(e.target.getAttribute("data-idx"));
+      extractRows[i].include = e.target.checked;
+      btnApplyExtract.disabled = !extractRows.some(x=>x.include);
+    });
+  });
+
+  // duty edit
+  extractArea.querySelectorAll('input[type="text"][data-duty]').forEach(inp => {
+    inp.addEventListener("input", (e) => {
+      const i = Number(e.target.getAttribute("data-duty"));
+      extractRows[i].duty = norm(e.target.value);
+    });
+  });
+
+  btnApplyExtract.disabled = !extractRows.some(x=>x.include);
+  btnClearExtract.disabled = false;
+}
+
+function clearExtract(){
+  extractRows = [];
+  extractArea.innerHTML = "まだ抽出がありません。";
+  btnApplyExtract.disabled = true;
+  btnClearExtract.disabled = true;
+}
+
+btnClearExtract.addEventListener("click", () => clearExtract());
+
+btnApplyExtract.addEventListener("click", () => {
+  const selected = extractRows.filter(r => r.include && r.date && norm(r.duty));
+  if(!selected.length){
+    alert("反映する行がありません。チェックを入れてください。");
+    return;
+  }
+
+  // 反映（同日があれば上書き）
+  for(const r of selected){
+    upsertItem(r.date, r.duty);
+  }
+
+  // 抽出結果は残してOK（迷うなら消してもいい）
+  renderAll();
+  alert(`反映しました：${selected.length}件`);
+});
+
 /* ========= 表示 ========= */
 function badge(kind, label){
   if(kind==="auto") return `<span class="pill ok">✅ ${label}</span>`;
@@ -334,7 +646,6 @@ function badge(kind, label){
   if(kind==="off") return `<span class="pill off">— ${label}</span>`;
   return `<span class="pill err">❌ ${label}</span>`;
 }
-
 function escapeHtml(s){
   return (s ?? "").toString()
     .replaceAll("&","&amp;")
