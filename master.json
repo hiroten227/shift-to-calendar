@@ -1,0 +1,13 @@
+{
+  "meta": {
+    "name": "勤務マスタ（暫定）",
+    "note": "通常行路は自動。臨/変/未登録は手動入力。'-'は非番で予定を作らない。",
+    "updated": "2026-03-02",
+    "diagram_change_date": "2026-03-14"
+  },
+  "duties": {
+    "401":  { "start": "09:00", "end": "09:30", "overnight": true,  "type": "route" },
+    "変7d": { "start": "09:00", "end": "17:45", "overnight": false, "type": "day" },
+    "-":    { "off": true, "type": "off" }
+  }
+}
