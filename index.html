@@ -109,14 +109,14 @@
     <div class="note">
       ✅ 自動：マスタにある行路（例：401 / 変7d）→ 時刻付きで出力<br>
       ⚠ 下書き：臨/変/未登録 → 終日予定（説明付き）で出力<br>
-      — 非番（-）は出力しません（公休日/特休日/育短日/年休も出力しません）
+      — 非番（-）と休み（公休日/特休日/育短日/年休）は出力しません
     </div>
     <div class="divider">
       <div class="row" style="flex-wrap:wrap;">
         <span class="pill ok">✅ 自動（時刻付き）</span>
-        <span class="pill.warn">⚠ 下書き（終日）</span>
-        <span class="pill.off">— 休み/非番（出力なし）</span>
-        <span class="pill.err">❌ 未入力</span>
+        <span class="pill warn">⚠ 下書き（終日）</span>
+        <span class="pill off">— 非番/休み（出力なし）</span>
+        <span class="pill err">❌ 未入力</span>
       </div>
     </div>
   </div>
@@ -143,13 +143,14 @@
         <div>
           <div class="small" style="font-weight:900; color:#111827;">OCR生テキスト</div>
           <textarea id="ocrText" placeholder="ここにOCR結果が出ます（そのまま確認用）"></textarea>
-          <div class="note">※誤認識はOK。次の抽出結果を直して反映します。</div>
+          <div class="note">※誤認識があるのは正常です。次の「抽出結果」で人の目チェックします。</div>
         </div>
 
         <div>
           <div class="small" style="font-weight:900; color:#111827;">抽出結果（日付＋行路名）</div>
           <div class="note" style="margin-top:4px;">
-            M/D形式（例：3/1 401）を最優先で拾い、足りない分は「日＋直後」や「近傍（保険）」で補完します。
+            ここは「それっぽいもの」を拾います。チェックして反映してください。<br>
+            ※「ー/－/—/-」は休みの誤認識が多いので抽出では基本拾いません。
           </div>
           <div id="extractArea" class="note" style="margin-top:8px;">まだ抽出がありません。</div>
           <div class="grid" style="margin-top:10px;">
@@ -161,15 +162,15 @@
     </div>
   </div>
 
-  <!-- 手入力 -->
+  <!-- 手入力（補助） -->
   <div class="card">
     <div style="font-weight:900">手入力（補助・OCR漏れ用）</div>
     <div class="note" style="margin-top:6px;">
-      OCRで拾えなかった分だけ補完できます。例：<span class="mono">401</span> / <span class="mono">-</span> / <span class="mono">臨1900</span> / <span class="mono">変401</span> / <span class="mono">変7d</span> / <span class="mono">公休日</span> / <span class="mono">年休</span>
+      OCRで拾えなかった分だけ、ここで補完できます。例：<span class="mono">401</span> / <span class="mono">臨1900</span> / <span class="mono">変401</span> / <span class="mono">変7d</span> / <span class="mono">公休日</span>
     </div>
     <div class="grid" style="margin-top:10px;">
       <input id="dateInput" type="date" />
-      <input id="dutyInput" type="text" placeholder="行路名（401 / - / 臨1900 / 変401 / 変7d / 公休日 / 年休 …）" />
+      <input id="dutyInput" type="text" placeholder="行路名（401 / 臨1900 / 変401 / 変7d / 公休日 / 年休 など）" />
       <button id="btnAdd" type="button">追加</button>
       <button id="btnClear" type="button" class="btn-sub">全消去</button>
     </div>
@@ -180,7 +181,8 @@
     <div style="font-weight:900">CSV出力（Googleカレンダー用）</div>
     <div class="note" style="margin-top:6px;">
       Googleカレンダー → 設定 → インポート で取り込めます。<br>
-      ※⚠ は「終日予定（下書き）」として出力します（説明文固定）。
+      ※⚠（臨/変/未登録）は「終日予定（下書き）」として出力します。<br>
+      ※非番（-）・休み（公休日/特休日/育短日/年休）は出力しません。
     </div>
     <div class="grid" style="margin-top:10px;">
       <button id="btnDownload" type="button" disabled>CSVをダウンロード</button>
@@ -203,7 +205,12 @@
 <script>
 /* ========= 定数（確定文言） ========= */
 const DRAFT_DESCRIPTION = "時刻未確定（臨行路／変行路）\n確定後、時間を修正してください";
-const OFF_WORDS = new Set(["公休日","特休日","育短日","年休"]); // ←確定仕様
+
+/* 休み語（予定を作らない） */
+const OFF_WORDS = new Set([
+  "公休日", "特休日", "育短日", "年休",
+  "公休", "特休", "育短", "有休", "休"
+]);
 
 /* ========= 要素 ========= */
 const monthInput = document.getElementById("monthInput");
@@ -249,22 +256,16 @@ monthInput.addEventListener("change", () => {
 });
 
 /* ========= 文字正規化 ========= */
-function norm(s){ return (s ?? "").toString().normalize("NFKC").trim(); }
-function escapeHtml(s){
-  return (s ?? "").toString()
-    .replaceAll("&","&amp;")
-    .replaceAll("<","&lt;")
-    .replaceAll(">","&gt;")
-    .replaceAll('"',"&quot;")
-    .replaceAll("'","&#039;");
+function norm(s){
+  return (s ?? "").toString().normalize("NFKC").trim();
 }
-
-/* ========= 時刻っぽいトークン（誤抽出防止） ========= */
 function isLikelyTimeToken(s){
   const t = norm(s);
-  if(/^\d{1,2}:\d{2}$/.test(t)) return true;          // 9:00
-  if(/^\d{3,4}$/.test(t) && Number(t) <= 2359) return true; // 0900, 1730
-  return false;
+  return /^\d{1,2}:\d{2}$/.test(t) || (/^\d{3,4}$/.test(t) && (Number(t) <= 2359));
+}
+function isDashLike(s){
+  const x = norm(s);
+  return x === "-" || x === "－" || x === "ー" || x === "—" || x === "–";
 }
 
 /* ========= 日付処理 ========= */
@@ -300,21 +301,19 @@ function classifyDuty(raw){
   const d = norm(raw);
   if(d==="") return {kind:"invalid", label:"未入力", duty:""};
 
-  // 非番
-  if(d==="-" || d==="－" || d==="ー") return {kind:"off", label:"非番（出力なし）", duty:"-"};
-
-  // 休み（出力しない）
+  // 非番・休みは出力しない
+  if(isDashLike(d)) return {kind:"off", label:"非番（出力なし）", duty:"-"};
   if(OFF_WORDS.has(d)) return {kind:"off", label:"休み（出力なし）", duty:d};
 
-  // マスタ
+  // マスタ優先（変7d など）
   const duties = master?.duties ?? {};
   if(Object.prototype.hasOwnProperty.call(duties, d)){
     const def = duties[d];
-    if(def?.off) return {kind:"off", label:"非番（出力なし）", duty:d};
+    if(def?.off) return {kind:"off", label:"非番/休み（出力なし）", duty:d};
     return {kind:"auto", label:"自動（時刻付き）", duty:d, def};
   }
 
-  // それ以外は終日下書き
+  // 臨/変/未登録は下書き
   return {kind:"draft", label:"下書き（終日）", duty:d};
 }
 function fmtTime(def){
@@ -335,16 +334,34 @@ function buildCsv(){
 
   for(const it of sorted){
     const c = classifyDuty(it.duty);
-    if(c.kind === "invalid" || c.kind === "off") continue;
+    if(c.kind === "invalid") continue;
+    if(c.kind === "off") continue;
 
     if(c.kind === "auto"){
       const startDate = it.date;
       const endDate = c.def?.overnight ? addDaysYYYYMMDD(it.date, 1) : it.date;
-      rows.push([ c.duty, toYMDslash(startDate), c.def.start ?? "", toYMDslash(endDate), c.def.end ?? "", "False", "" ]);
+      rows.push([
+        c.duty,
+        toYMDslash(startDate),
+        c.def.start ?? "",
+        toYMDslash(endDate),
+        c.def.end ?? "",
+        "False",
+        ""
+      ]);
     } else {
-      rows.push([ c.duty, toYMDslash(it.date), "", toYMDslash(it.date), "", "True", DRAFT_DESCRIPTION ]);
+      rows.push([
+        c.duty,
+        toYMDslash(it.date),
+        "",
+        toYMDslash(it.date),
+        "",
+        "True",
+        DRAFT_DESCRIPTION
+      ]);
     }
   }
+
   return rows.map(cols => cols.map(csvEscape).join(",")).join("\n");
 }
 function downloadText(filename, text){
@@ -357,13 +374,6 @@ function downloadText(filename, text){
   a.click();
   a.remove();
   URL.revokeObjectURL(url);
-}
-
-/* ========= upsert（同じ日付は上書き） ========= */
-function upsertItem(date, duty){
-  const idx = items.findIndex(x => x.date === date);
-  if(idx >= 0) items[idx] = {date, duty};
-  else items.push({date, duty});
 }
 
 /* ========= UI操作（手入力） ========= */
@@ -398,11 +408,17 @@ btnCopyCsv.onclick = async () => {
   }
 };
 
+/* ========= upsert（同じ日付は上書き） ========= */
+function upsertItem(date, duty){
+  const idx = items.findIndex(x => x.date === date);
+  if(idx >= 0) items[idx] = {date, duty};
+  else items.push({date, duty});
+}
+
 /* ========= OCR ========= */
 imgInput.addEventListener("change", () => {
   btnOcr.disabled = !(imgInput.files && imgInput.files[0]);
 });
-
 btnOcr.addEventListener("click", async () => {
   const f = imgInput.files?.[0];
   if(!f) return;
@@ -415,14 +431,14 @@ btnOcr.addEventListener("click", async () => {
   setOcrUi(true, "OCR準備中…", 1);
 
   try{
-    // 荒い写メは縮小しすぎるとさらに潰れるので 2000〜2800 推奨
+    // 画像を縮小（スマホ負荷軽減）
     const dataUrl = await fileToResizedDataUrl(f, 2200);
 
     setOcrUi(true, "OCR実行中…（最初は少し時間がかかります）", 5);
 
     const result = await Tesseract.recognize(
       dataUrl,
-      "jpn+eng",
+      "jpn",
       {
         logger: (m) => {
           if(m.status){
@@ -485,8 +501,9 @@ function fileToResizedDataUrl(file, maxSize){
   });
 }
 
-/* ========= 抽出（主役：正規表現 / 保険：近傍探索） ========= */
+/* ========= OCRテキスト → 日付＋行路名 抽出 ========= */
 function extractFromOcrText(text){
+  // 正規化（空白つぶし）
   const t = norm(text)
     .replaceAll("：", ":")
     .replaceAll("／", "/")
@@ -495,23 +512,23 @@ function extractFromOcrText(text){
 
   const rows = [];
 
-  // 行路っぽさ
+  // 行路っぽさ（ダッシュ系は“休み誤認識”が多いので除外）
   const looksDuty = (duty) => {
     const s = norm(duty);
     if(!s) return false;
     if(isLikelyTimeToken(s)) return false;
 
-    // 休み語も拾ってOK（最終的にCSVで出力しない）
+    // 休み語は拾ってもOK（ただし出力しない）
     if(OFF_WORDS.has(s)) return true;
 
+    // ★ここ重要：ダッシュ系は抽出で採用しない
+    if(isDashLike(s)) return false;
+
     return (
-      s === "-" ||
-      s === "－" ||
-      s === "ー" ||
       s.startsWith("臨") ||
       s.startsWith("変") ||
-      /^[0-9]{3,4}(-[0-9]{1,2})?$/.test(s) ||
-      /^[0-9]{1,4}[A-Za-z]$/i.test(s)
+      /^[0-9]{3,4}(-[0-9]{1,2})?$/.test(s) ||   // 401, 401-1
+      /^[0-9]{1,4}[A-Za-z]$/i.test(s)          // 181T など
     );
   };
 
@@ -525,32 +542,42 @@ function extractFromOcrText(text){
 
     const ym = monthInput.value;
     const [y, selectedM] = ym.split("-").map(Number);
+
+    // 対象月と一致する月だけ
     if(month !== selectedM) continue;
 
     const date = ymdFromDay(day);
     if(!date) continue;
+
+    // ★ダッシュ系は採用しない
+    if(isDashLike(duty)) continue;
+
     if(!looksDuty(duty)) continue;
 
     rows.push({ include:true, date, duty, reason:"M/D形式" });
   }
 
-  // ② 日＋直後（拾える率が高い）
+  // ② 日＋直後（控えめ）
   const reD = /(?:^| )(\d{1,2})(?:日)?\s*[:：]?\s*([^\s]+)/g;
   while((m = reD.exec(t)) !== null){
     const day = Number(m[1]);
     const duty = norm(m[2]);
+
     const date = ymdFromDay(day);
     if(!date) continue;
 
-    // M/Dがあればそっち優先
+    // M/D優先
     if(rows.some(r => r.date === date)) continue;
+
+    // ★ダッシュ系は採用しない
+    if(isDashLike(duty)) continue;
 
     if(!looksDuty(duty)) continue;
 
     rows.push({ include:true, date, duty, reason:"日＋直後" });
   }
 
-  // ③ 保険：近傍探索（追加のみ、既存は上書きしない）
+  // ③ 近傍（保険）：日だけ見つかったが行路が弱いときに補完
   const tokens = t.split(/[\s,;]+/g).map(s=>norm(s)).filter(Boolean);
   const hasDate = (date) => rows.some(r => r.date === date);
 
@@ -571,23 +598,23 @@ function extractFromOcrText(text){
     for(let j=start; j<=end; j++){
       if(j===i) continue;
       const cand = tokens[j];
+
+      // ★ダッシュ系は絶対拾わない
+      if(isDashLike(cand)) continue;
+
       if(looksDuty(cand)){
         picked = cand;
         break;
       }
     }
+
     if(picked){
       rows.push({ include:true, date, duty:norm(picked), reason:"近傍（保険）" });
     }
   }
 
-  // 同日重複整理（優先順位：M/D > 日＋直後 > 近傍）
-  const priority = (reason) => {
-    if(reason==="M/D形式") return 3;
-    if(reason==="日＋直後") return 2;
-    return 1;
-  };
-
+  // 優先順位：M/D > 日＋直後 > 近傍
+  const priority = (reason) => (reason==="M/D形式" ? 3 : reason==="日＋直後" ? 2 : 1);
   const map = new Map();
   for(const r of rows){
     const prev = map.get(r.date);
@@ -615,7 +642,7 @@ function renderExtract(){
           <th style="width:48px;">反映</th>
           <th>日付</th>
           <th>行路名</th>
-          <th style="width:120px;">根拠</th>
+          <th style="width:110px;">根拠</th>
         </tr>
       </thead>
       <tbody>
@@ -687,6 +714,14 @@ function badge(kind, label){
   if(kind==="off") return `<span class="pill off">— ${label}</span>`;
   return `<span class="pill err">❌ ${label}</span>`;
 }
+function escapeHtml(s){
+  return (s ?? "").toString()
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#039;");
+}
 
 function renderAll(){
   // プレビュー
@@ -699,7 +734,7 @@ function renderAll(){
       const detail =
         c.kind==="auto" ? fmtTime(c.def) :
         c.kind==="draft" ? "終日（下書き）／説明あり" :
-        c.kind==="off" ? "休み/非番（出力なし）" : "—";
+        c.kind==="off" ? "非番/休み（出力なし）" : "—";
       return `
         <div class="item">
           <div class="row">
@@ -720,8 +755,12 @@ function renderAll(){
   btnDownload.disabled = !canExport;
   btnCopyCsv.disabled = !canExport;
 
-  const ym = monthInput.value || "shift";
-  csvHint.textContent = canExport ? `※ファイル名：shift_${ym}.csv` : "※入力が1件以上あるとCSVを作れます。";
+  if(!canExport){
+    csvHint.textContent = "※入力が1件以上あるとCSVを作れます。";
+  }else{
+    const ym = monthInput.value || "（未選択）";
+    csvHint.textContent = `※ファイル名：shift_${ym}.csv`;
+  }
 }
 </script>
 </body>
