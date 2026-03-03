@@ -6,14 +6,8 @@
   <title>勤務シフト → Googleカレンダー</title>
 
   <style>
-    :root {
-      --bg:#f6f7fb; --card:#fff; --line:#e5e7eb;
-      --text:#111827; --muted:#6b7280;
-    }
-    body {
-      font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans JP", sans-serif;
-      margin:0; background:var(--bg); color:var(--text);
-    }
+    :root { --bg:#f6f7fb; --card:#fff; --line:#e5e7eb; --text:#111827; --muted:#6b7280; }
+    body { font-family: system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans JP",sans-serif; margin:0; background:var(--bg); color:var(--text); }
     header { padding:16px; background:#fff; border-bottom:1px solid var(--line); }
     h1 { margin:0; font-size:18px; }
     main { padding:16px; display:grid; gap:12px; max-width:920px; margin:0 auto; }
@@ -22,25 +16,18 @@
     .label { color:var(--muted); }
     .value { font-weight:800; }
     .note { color:var(--muted); font-size:12px; line-height:1.5; margin-top:8px; }
-    input[type="month"], input[type="date"], input[type="text"], textarea, input[type="range"]{
-      width:100%; padding:10px 12px; border-radius:12px; border:1px solid #d1d5db;
-      background:#fff; font-size:15px; box-sizing:border-box;
+    input[type="month"], input[type="date"], input[type="text"], textarea {
+      width:100%; padding:10px 12px; border-radius:12px; border:1px solid #d1d5db; background:#fff; font-size:15px; box-sizing:border-box;
     }
-    input[type="range"]{ padding: 6px 0; border:none; }
-    textarea { min-height: 140px; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px; }
+    textarea { min-height:140px; font-family: ui-monospace, Menlo, Consolas, monospace; font-size:13px; }
     button{
       width:100%; padding:12px 14px; border-radius:12px; border:1px solid #d1d5db;
-      background:#111827; color:#fff; font-size:15px; font-weight:900;
-      cursor:pointer;
+      background:#111827; color:#fff; font-size:15px; font-weight:900; cursor:pointer;
     }
-    button:disabled { opacity:0.5; cursor:not-allowed; }
+    button:disabled{ opacity:0.5; cursor:not-allowed; }
     .btn-sub{ background:#fff; color:#111827; }
     .grid{ display:grid; gap:10px; }
-    .pill{
-      display:inline-flex; align-items:center; gap:6px;
-      font-size:12px; padding:4px 10px; border-radius:999px;
-      border:1px solid var(--line); background:#fff; color:var(--text);
-    }
+    .pill{ display:inline-flex; align-items:center; gap:6px; font-size:12px; padding:4px 10px; border-radius:999px; border:1px solid var(--line); background:#fff; color:var(--text); }
     .pill.ok{ border-color:#bbf7d0; background:#f0fdf4; }
     .pill.warn{ border-color:#fde68a; background:#fffbeb; }
     .pill.off{ border-color:#e5e7eb; background:#f9fafb; color:#374151; }
@@ -51,54 +38,23 @@
     .mono{ font-family: ui-monospace, Menlo, Consolas, monospace; }
     .small{ font-size:12px; color:var(--muted); }
 
-    .two-col { display:grid; grid-template-columns: 1fr; gap:10px; }
-    @media (min-width: 980px){
-      .two-col { grid-template-columns: 1fr 1fr; }
-    }
+    .two-col{ display:grid; grid-template-columns:1fr; gap:10px; }
+    @media (min-width: 980px){ .two-col{ grid-template-columns:1fr 1fr; } }
 
-    .table {
-      width:100%;
-      border-collapse: collapse;
-      font-size: 13px;
-    }
-    .table th, .table td {
-      border-top: 1px solid var(--line);
-      padding: 8px;
-      vertical-align: top;
-    }
-    .table th { text-align:left; color: var(--muted); font-weight: 700; }
-    .chk { transform: scale(1.2); }
-    .progress {
-      height: 10px;
-      background: #eef2ff;
-      border: 1px solid #e5e7eb;
-      border-radius: 999px;
-      overflow: hidden;
-    }
-    .progress > div{
-      height: 100%;
-      width: 0%;
-      background: #111827;
-    }
-    img.preview {
-      width: 100%;
-      max-height: 220px;
-      object-fit: contain;
-      border: 1px solid var(--line);
-      border-radius: 12px;
-      background: #fff;
-    }
+    .table{ width:100%; border-collapse:collapse; font-size:13px; }
+    .table th, .table td{ border-top:1px solid var(--line); padding:8px; vertical-align:top; }
+    .table th{ text-align:left; color:var(--muted); font-weight:700; }
+    .chk{ transform:scale(1.2); }
+    .progress{ height:10px; background:#eef2ff; border:1px solid #e5e7eb; border-radius:999px; overflow:hidden; }
+    .progress>div{ height:100%; width:0%; background:#111827; }
+    img.preview{ width:100%; max-height:220px; object-fit:contain; border:1px solid var(--line); border-radius:12px; background:#fff; }
   </style>
 </head>
 
 <body>
-<header>
-  <h1>勤務シフト → Googleカレンダー</h1>
-</header>
+<header><h1>勤務シフト → Googleカレンダー</h1></header>
 
 <main>
-
-  <!-- 対象月 -->
   <div class="card">
     <div class="row">
       <div class="label">対象月</div>
@@ -106,12 +62,9 @@
     </div>
     <div style="height:10px"></div>
     <input id="monthInput" type="month" />
-    <div class="note">
-      ※この月の「1〜31日」に当てはめて抽出します（例：2026-03）
-    </div>
+    <div class="note">※この月の「1〜31日」に当てはめて抽出します（例：2026-03）</div>
   </div>
 
-  <!-- 勤務マスタ -->
   <div class="card">
     <div class="row">
       <div class="label">使用中の勤務マスタ</div>
@@ -132,24 +85,17 @@
     </div>
   </div>
 
-  <!-- OCR -->
   <div class="card">
     <div style="font-weight:900">写メ → OCR（Tesseract.js）</div>
     <div class="note" style="margin-top:6px;">
       画像は外部に送信しません（端末内でOCR）。<br>
-      最初の実行時は日本語学習データの読み込みで少し時間がかかります。<br>
-      ※業務タブレット画面の写メは荒れやすいので、「日(1〜31)を軸に拾う」方式です。
+      このアプリは <b>自動で最適化</b>（複数パターンで試して一番良い結果を採用）します。<br>
+      ※業務タブレット写メは荒れやすいので「日(1〜31)を軸に拾う」方式です。
     </div>
 
     <div class="grid" style="margin-top:10px;">
       <input id="imgInput" type="file" accept="image/*" />
       <button id="btnOcr" type="button" disabled>OCR実行</button>
-
-      <div class="row">
-        <div class="label">二値化しきい値（数字が薄い→下げる / 文字が潰れる→上げる）</div>
-        <div class="value"><span id="thLabel">150</span></div>
-      </div>
-      <input id="thSlider" type="range" min="80" max="210" step="1" value="150" />
 
       <div class="row">
         <div class="label">進捗</div>
@@ -159,9 +105,9 @@
 
       <div class="two-col" style="margin-top:10px;">
         <div>
-          <div class="small" style="font-weight:900; color:#111827;">前処理後プレビュー（この画像でOCRします）</div>
+          <div class="small" style="font-weight:900; color:#111827;">前処理後プレビュー（採用した画像）</div>
           <img id="preImg" class="preview" alt="preview" />
-          <div class="note">※ここで数字が読めそうなら、抽出も良くなります。</div>
+          <div class="note" id="autoPickNote">※自動選択前です。</div>
 
           <div class="small" style="font-weight:900; color:#111827; margin-top:10px;">OCR生テキスト（確認用）</div>
           <textarea id="ocrText" placeholder="ここにOCR結果が出ます（荒れていてOK）"></textarea>
@@ -177,15 +123,11 @@
             <button id="btnApplyExtract" type="button" class="btn-sub" disabled>チェックした分をプレビューに反映</button>
             <button id="btnClearExtract" type="button" class="btn-sub" disabled>抽出結果を消す</button>
           </div>
-          <div class="note" style="margin-top:10px;">
-            ※「変行路の出退勤は手入力しない」方針のため、未登録は自動で終日下書きになります。
-          </div>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- 手入力補助 -->
   <div class="card">
     <div style="font-weight:900">手入力（補助・OCR漏れ用）</div>
     <div class="note" style="margin-top:6px;">
@@ -199,7 +141,6 @@
     </div>
   </div>
 
-  <!-- CSV -->
   <div class="card">
     <div style="font-weight:900">CSV出力（Googleカレンダー用）</div>
     <div class="note" style="margin-top:6px;">
@@ -213,15 +154,12 @@
     <div class="note" id="csvHint"></div>
   </div>
 
-  <!-- プレビュー -->
   <div class="card">
     <div style="font-weight:900">プレビュー</div>
     <div id="previewArea" class="note">まだ入力がありません。</div>
   </div>
-
 </main>
 
-<!-- Tesseract.js -->
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
 <script>
@@ -241,10 +179,8 @@ const ocrText = document.getElementById("ocrText");
 const extractArea = document.getElementById("extractArea");
 const btnApplyExtract = document.getElementById("btnApplyExtract");
 const btnClearExtract = document.getElementById("btnClearExtract");
-
-const thSlider = document.getElementById("thSlider");
-const thLabel = document.getElementById("thLabel");
 const preImg = document.getElementById("preImg");
+const autoPickNote = document.getElementById("autoPickNote");
 
 const dateInput = document.getElementById("dateInput");
 const dutyInput = document.getElementById("dutyInput");
@@ -258,12 +194,8 @@ const csvHint = document.getElementById("csvHint");
 
 /* ========= 状態 ========= */
 let master = null;
-let items = [];       // {date:"YYYY-MM-DD", duty:"xxx"}
-let extractRows = []; // {include:true, date:"YYYY-MM-DD", duty:"xxx", reason:"..."}
-
-thSlider.addEventListener("input", () => {
-  thLabel.textContent = String(thSlider.value);
-});
+let items = [];
+let extractRows = [];
 
 /* ========= 初期表示 ========= */
 const now = new Date();
@@ -276,27 +208,20 @@ monthInput.addEventListener("change", () => {
   if (!v) { monthLabel.textContent = "未選択"; return; }
   const [y,m] = v.split("-");
   monthLabel.textContent = `${y}年${Number(m)}月`;
-  clearExtract(); // 誤反映防止
+  clearExtract();
 });
 
-/* ========= 基本ユーティリティ ========= */
-function norm(s){
-  return (s ?? "").toString().normalize("NFKC").trim();
-}
+/* ========= 基本 ========= */
+function norm(s){ return (s ?? "").toString().normalize("NFKC").trim(); }
 function escapeHtml(s){
   return (s ?? "").toString()
-    .replaceAll("&","&amp;")
-    .replaceAll("<","&lt;")
-    .replaceAll(">","&gt;")
-    .replaceAll('"',"&quot;")
-    .replaceAll("'","&#039;");
+    .replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;").replaceAll("'","&#039;");
 }
-
-/* ========= 日付処理 ========= */
 function addDaysYYYYMMDD(yyyyMMdd, delta){
   const [y,m,d] = yyyyMMdd.split("-").map(Number);
   const dt = new Date(y, m-1, d);
-  dt.setDate(dt.getDate() + delta);
+  dt.setDate(dt.getDate()+delta);
   return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
 }
 function toYMDslash(yyyyMMdd){
@@ -314,13 +239,12 @@ function ymdFromDay(day){
   return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
 }
 
-/* ========= 勤務マスタ読込 ========= */
+/* ========= 勤務マスタ ========= */
 fetch("master.json")
   .then(r => { if(!r.ok) throw new Error("master.jsonが読めません"); return r.json(); })
   .then(j => { master = j; masterLabel.textContent = j?.meta?.name ?? "勤務マスタ"; renderAll(); })
   .catch(err => { console.error(err); masterLabel.textContent = "勤務マスタ読み込み失敗"; renderAll(); });
 
-/* ========= 勤務判定 ========= */
 function classifyDuty(raw){
   const d = norm(raw);
   if(d==="") return {kind:"invalid", label:"未入力", duty:""};
@@ -334,10 +258,7 @@ function classifyDuty(raw){
   }
   return {kind:"draft", label:"下書き（終日）", duty:d};
 }
-function fmtTime(def){
-  if(!def) return "";
-  return `${def.start} → ${def.end}${def.overnight ? "（翌日）" : ""}`;
-}
+function fmtTime(def){ return def ? `${def.start} → ${def.end}${def.overnight ? "（翌日）" : ""}` : ""; }
 function badge(kind, label){
   if(kind==="auto") return `<span class="pill ok">✅ ${label}</span>`;
   if(kind==="draft") return `<span class="pill warn">⚠ ${label}</span>`;
@@ -345,65 +266,45 @@ function badge(kind, label){
   return `<span class="pill err">❌ ${label}</span>`;
 }
 
-/* ========= CSV生成 ========= */
-function csvEscape(value){
-  const s = (value ?? "").toString();
-  if (/[",\n]/.test(s)) return `"${s.replaceAll('"', '""')}"`;
+/* ========= CSV ========= */
+function csvEscape(v){
+  const s = (v ?? "").toString();
+  if(/[",\n]/.test(s)) return `"${s.replaceAll('"','""')}"`;
   return s;
 }
 function buildCsv(){
-  const sorted = [...items].sort((a,b)=> a.date.localeCompare(b.date));
+  const sorted = [...items].sort((a,b)=>a.date.localeCompare(b.date));
   const rows = [];
   rows.push(["Subject","Start Date","Start Time","End Date","End Time","All Day Event","Description"]);
 
   for(const it of sorted){
     const c = classifyDuty(it.duty);
-    if(c.kind === "invalid") continue;
-    if(c.kind === "off") continue;
+    if(c.kind==="invalid" || c.kind==="off") continue;
 
-    if(c.kind === "auto"){
+    if(c.kind==="auto"){
       const startDate = it.date;
       const endDate = c.def?.overnight ? addDaysYYYYMMDD(it.date, 1) : it.date;
-      rows.push([
-        c.duty,
-        toYMDslash(startDate),
-        c.def.start ?? "",
-        toYMDslash(endDate),
-        c.def.end ?? "",
-        "False",
-        ""
-      ]);
-    } else {
-      rows.push([
-        c.duty,
-        toYMDslash(it.date),
-        "",
-        toYMDslash(it.date),
-        "",
-        "True",
-        DRAFT_DESCRIPTION
-      ]);
+      rows.push([c.duty, toYMDslash(startDate), c.def.start ?? "", toYMDslash(endDate), c.def.end ?? "", "False", ""]);
+    }else{
+      rows.push([c.duty, toYMDslash(it.date), "", toYMDslash(it.date), "", "True", DRAFT_DESCRIPTION]);
     }
   }
-
   return rows.map(cols => cols.map(csvEscape).join(",")).join("\n");
 }
 function downloadText(filename, text){
   const blob = new Blob([text], {type:"text/csv;charset=utf-8"});
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
+  a.href=url; a.download=filename;
   document.body.appendChild(a);
-  a.click();
-  a.remove();
+  a.click(); a.remove();
   URL.revokeObjectURL(url);
 }
 
-/* ========= upsert（同じ日付は上書き） ========= */
+/* ========= upsert ========= */
 function upsertItem(date, duty){
   const idx = items.findIndex(x => x.date === date);
-  if(idx >= 0) items[idx] = {date, duty};
+  if(idx>=0) items[idx] = {date, duty};
   else items.push({date, duty});
 }
 
@@ -438,62 +339,9 @@ btnCopyCsv.onclick = async () => {
   }
 };
 
-/* ========= OCR ========= */
+/* ========= OCR UI ========= */
 imgInput.addEventListener("change", () => {
   btnOcr.disabled = !(imgInput.files && imgInput.files[0]);
-});
-
-btnOcr.addEventListener("click", async () => {
-  const f = imgInput.files?.[0];
-  if(!f) return;
-
-  if(!monthInput.value){
-    alert("先に対象月を選んでください（例：2026-03）");
-    return;
-  }
-
-  setOcrUi(true, "OCR準備中…", 1);
-
-  try{
-    const th = Number(thSlider.value);
-    // 画面写メは細い文字なので、あまり縮小しすぎない（重い端末は2800へ）
-    const dataUrl = await fileToResizedBinarizedDataUrl(f, 3200, th);
-
-    preImg.src = dataUrl;
-
-    setOcrUi(true, "OCR実行中…（最初は少し時間がかかります）", 5);
-
-    const result = await Tesseract.recognize(
-      dataUrl,
-      "jpn+eng",
-      {
-        logger: (m) => {
-          if(m.status){
-            const p = (typeof m.progress === "number") ? m.progress : null;
-            if(p !== null) setOcrUi(true, `${m.status}`, Math.floor(p * 100));
-            else setOcrUi(true, `${m.status}`, null);
-          }
-        },
-        workerPath: "https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/worker.min.js",
-        corePath: "https://cdn.jsdelivr.net/npm/tesseract.js-core@5/tesseract-core.wasm.js",
-        langPath: "https://tessdata.projectnaptha.com/4.0.0"
-      }
-    );
-
-    const text = (result?.data?.text ?? "").trim();
-    ocrText.value = text;
-
-    // ★この画像前提の抽出（改良版）
-    extractRows = extractFromOcrText_Strong(text);
-    renderExtract();
-
-    setOcrUi(false, "完了", 100);
-    renderAll();
-  }catch(e){
-    console.error(e);
-    setOcrUi(false, "失敗（しきい値を変えて再試行）", 0);
-    alert("OCRに失敗しました。しきい値を変えて再試行してください。");
-  }
 });
 
 function setOcrUi(running, status, percent){
@@ -504,7 +352,88 @@ function setOcrUi(running, status, percent){
   btnOcr.disabled = running || !(imgInput.files && imgInput.files[0]);
 }
 
-/* ========= 画像前処理：リサイズ＋軽い二値化 ========= */
+/* ========= OCR 実行（自動最適化） ========= */
+btnOcr.addEventListener("click", async () => {
+  const f = imgInput.files?.[0];
+  if(!f) return;
+
+  if(!monthInput.value){
+    alert("先に対象月を選んでください（例：2026-03）");
+    return;
+  }
+
+  clearExtract();
+  ocrText.value = "";
+  autoPickNote.textContent = "自動最適化中…（複数パターンで試します）";
+  setOcrUi(true, "準備中…", 1);
+
+  // 自動で試すしきい値（固定・ユーザー操作不要）
+  const thresholds = [130, 150, 170];
+
+  try{
+    let best = null; // {th, dataUrl, text, rows, score}
+
+    for(let k=0; k<thresholds.length; k++){
+      const th = thresholds[k];
+      setOcrUi(true, `前処理 ${k+1}/${thresholds.length}…`, 5 + k*5);
+
+      const dataUrl = await fileToResizedBinarizedDataUrl(f, 3200, th);
+
+      setOcrUi(true, `OCR ${k+1}/${thresholds.length}…`, 15 + k*25);
+
+      const result = await Tesseract.recognize(
+        dataUrl,
+        "jpn+eng",
+        {
+          logger: (m) => {
+            // 進捗は雰囲気表示（複数回実行なのでざっくり）
+            if(m.status === "recognizing text" && typeof m.progress === "number"){
+              const base = 15 + k*25;
+              const p = base + Math.floor(m.progress * 20);
+              setOcrUi(true, `OCR ${k+1}/${thresholds.length}…`, p);
+            }
+          },
+          workerPath: "https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/worker.min.js",
+          corePath: "https://cdn.jsdelivr.net/npm/tesseract.js-core@5/tesseract-core.wasm.js",
+          langPath: "https://tessdata.projectnaptha.com/4.0.0"
+        }
+      );
+
+      const text = (result?.data?.text ?? "").trim();
+      const rows = extractFromOcrText_Strong(text);
+
+      const score = scoreExtraction(rows); // 件数＋マスタ一致で評価
+
+      if(!best || score > best.score){
+        best = { th, dataUrl, text, rows, score };
+      }
+    }
+
+    if(!best){
+      setOcrUi(false, "失敗", 0);
+      alert("OCRに失敗しました。画像を拡大して撮り直すと改善します。");
+      return;
+    }
+
+    // ベスト採用
+    preImg.src = best.dataUrl;
+    ocrText.value = best.text;
+    extractRows = best.rows;
+    renderExtract();
+
+    autoPickNote.textContent = `自動最適化：最も抽出が多い結果を採用しました。`;
+    setOcrUi(false, "完了", 100);
+    renderAll();
+
+  }catch(e){
+    console.error(e);
+    setOcrUi(false, "失敗", 0);
+    autoPickNote.textContent = "失敗しました。画像の拡大／撮り直しを試してください。";
+    alert("OCRに失敗しました。画像を拡大して撮り直すと改善します。");
+  }
+});
+
+/* ========= 前処理（リサイズ＋二値化） ========= */
 function fileToResizedBinarizedDataUrl(file, maxSize, threshold){
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -528,14 +457,13 @@ function fileToResizedBinarizedDataUrl(file, maxSize, threshold){
         const TH = Math.max(80, Math.min(210, Number(threshold || 150)));
 
         for(let i=0; i<data.length; i+=4){
-          const r = data[i], g = data[i+1], b = data[i+2];
+          const r=data[i], g=data[i+1], b=data[i+2];
           const y = (r*0.299 + g*0.587 + b*0.114);
           const v = (y > TH) ? 255 : 0;
-          data[i] = data[i+1] = data[i+2] = v;
-          data[i+3] = 255;
+          data[i]=data[i+1]=data[i+2]=v;
+          data[i+3]=255;
         }
         ctx.putImageData(imageData, 0, 0);
-
         resolve(canvas.toDataURL("image/png"));
       };
       img.src = reader.result;
@@ -544,125 +472,68 @@ function fileToResizedBinarizedDataUrl(file, maxSize, threshold){
   });
 }
 
-/* ========= 抽出ロジック（この画像前提・強化版） ========= */
-/**
- * 方針：
- * - OCRテキストが荒くても、まず「日(1〜31)」を見つける
- * - その近傍トークンから「行路っぽいもの」をスコアリングして採用
- * - OCRあるある（I→1, O→0 等）を補正
- * - master.jsonに存在する行路は強く優先
- */
+/* ========= 抽出ロジック（強化版） ========= */
 function extractFromOcrText_Strong(text){
   const t0 = norm(text);
+  let t = t0.replaceAll("：",":").replaceAll("／","/").replaceAll("　"," ").replace(/\s+/g," ");
 
-  // 1) 正規化：NFKC + 記号整理 + 改行/タブを空白へ
-  let t = t0
-    .replaceAll("：", ":")
-    .replaceAll("／", "/")
-    .replaceAll("　", " ")
-    .replace(/\s+/g, " ");
-
-  // 2) トークン化（表OCRはゴミが混ざるので荒めに分割）
-  //    ただし「401-2」などは残したいので、- は残す
-  const roughTokens = t.split(/[\s,;]+/g).map(x => x.trim()).filter(Boolean);
-
-  // 3) トークンを「日」「行路候補」に変換しやすいように補正
+  const roughTokens = t.split(/[\s,;]+/g).map(x=>x.trim()).filter(Boolean);
   const tokens = roughTokens.map(tok => normalizeOcrToken(tok));
 
-  // 4) 日(1-31)の位置を列挙（ただし 2026 や 03 などの年月っぽいのは避ける）
   const dayPositions = [];
   for(let i=0;i<tokens.length;i++){
-    const tok = tokens[i];
-    const day = parseDayToken(tok);
-    if(day !== null){
-      dayPositions.push({i, day});
-    }
+    const day = parseDayToken(tokens[i]);
+    if(day !== null) dayPositions.push({i, day});
   }
 
-  // 5) 日ごとに近傍から候補収集 → ベストを選ぶ
   const bestByDate = new Map();
   for(const dp of dayPositions){
     const date = ymdFromDay(dp.day);
     if(!date) continue;
 
-    // 近傍範囲（荒いOCRは並びがズレるので少し広め）
     const start = Math.max(0, dp.i - 10);
     const end   = Math.min(tokens.length - 1, dp.i + 10);
 
     let best = null;
     for(let j=start; j<=end; j++){
       if(j===dp.i) continue;
-      const candRaw = tokens[j];
-      const cand = cleanupDutyCandidate(candRaw);
-
+      const cand = cleanupDutyCandidate(tokens[j]);
       const score = scoreDutyCandidate(cand);
       if(score <= 0) continue;
-
-      // 既存より良ければ更新
       if(!best || score > best.score){
-        best = { duty: cand, score, reason: `日${dp.day}近傍（+/-10）` };
+        best = { duty:cand, score, reason:`日${dp.day}近傍（+/-10）` };
       }
     }
 
     if(best){
-      // 同日が複数回出た場合はスコア最大を採用
       const prev = bestByDate.get(date);
-      if(!prev || best.score > prev.score){
-        bestByDate.set(date, best);
-      }
+      if(!prev || best.score > prev.score) bestByDate.set(date, best);
     }
   }
 
-  // 6) Map → rows
   const rows = [];
   for(const [date, best] of bestByDate.entries()){
-    // ここで「-（非番）」も拾うが、最終CSVでは出力しない仕様なのでOK
-    rows.push({ include:true, date, duty: best.duty, reason: best.reason });
+    rows.push({ include:true, date, duty:best.duty, reason:best.reason });
   }
-
-  // 日付昇順
   rows.sort((a,b)=>a.date.localeCompare(b.date));
 
-  // 7) 追加：もし「M/D 401」みたいな明確表現が混ざっていたら優先上書き
-  // （たまにOCRがそこだけ読める）
-  const rows2 = applyExplicitMdPatterns(rows, t);
-
-  return rows2;
+  return applyExplicitMdPatterns(rows, t);
 }
 
-/* OCRあるある補正（トークン単位） */
 function normalizeOcrToken(tok){
   let s = norm(tok);
-
-  // 罫線・ノイズを落とす
-  s = s.replace(/[“”‘’]/g, '"');
-  s = s.replace(/[（）\(\)\[\]{}]/g, "");
-  s = s.replace(/^[\.\-_:]+|[\.\-_:]+$/g, "");
-
-  // よくある誤認識：数字に寄せる
-  // ※「完全置換」は危険なので、"数字っぽい"時だけ補正
-  const hasDigitLike = /[0-9]/.test(s) || /[Il\|!OosSB]/.test(s);
+  s = s.replace(/[“”‘’]/g,'"').replace(/[（）\(\)\[\]{}]/g,"");
+  s = s.replace(/^[\.\-_:]+|[\.\-_:]+$/g,"");
+  const hasDigitLike = /[0-9]/.test(s) || /[Il\|!OoSsbB]/.test(s);
   if(hasDigitLike){
-    // 1系
-    s = s.replace(/[Il\|!]/g, "1");
-    // 0系（O,o）
-    s = s.replace(/[Oo]/g, "0");
-    // 5系（S）
-    s = s.replace(/S/g, "5");
-    // 8系（B）
-    s = s.replace(/B/g, "8");
+    s = s.replace(/[Il\|!]/g,"1").replace(/[Oo]/g,"0").replace(/S/g,"5").replace(/B/g,"8");
   }
-
-  // 全角ハイフン等
-  s = s.replace(/[－ー―]/g, "-");
-
+  s = s.replace(/[－ー―]/g,"-");
   return s;
 }
 
-/* 日トークン解析：1〜31だけ返す */
 function parseDayToken(tok){
   const s = norm(tok);
-  // "18" / "18日" / "18." / "18:" など
   const m = s.match(/^(\d{1,2})(?:日)?$/);
   if(m){
     const n = Number(m[1]);
@@ -671,71 +542,49 @@ function parseDayToken(tok){
   return null;
 }
 
-/* 行路候補クリーニング */
 function cleanupDutyCandidate(tok){
-  let s = norm(tok);
-
-  // 末尾の句読点など削る
-  s = s.replace(/[,\.\:\;]+$/g, "");
-
-  // 変/臨の後ろが読めてないケースを救う（例：変40I → 変401）
+  let s = norm(tok).replace(/[,\.\:\;]+$/g,"");
   if(s.startsWith("変")){
     const rest = s.slice(1);
-    s = "変" + rest.replace(/[Il\|!]/g, "1").replace(/[Oo]/g, "0");
+    s = "変" + rest.replace(/[Il\|!]/g,"1").replace(/[Oo]/g,"0");
   }
   if(s.startsWith("臨")){
     const rest = s.slice(1);
-    s = "臨" + rest.replace(/[Il\|!]/g, "1").replace(/[Oo]/g, "0");
+    s = "臨" + rest.replace(/[Il\|!]/g,"1").replace(/[Oo]/g,"0");
   }
-
   return s;
 }
 
-/* 候補のスコアリング（高いほど採用） */
 function scoreDutyCandidate(cand){
   const s = norm(cand);
   if(!s) return 0;
-
-  // 非番
   if(s === "-") return 60;
 
-  // masterに完全一致 → 最優先
   const duties = master?.duties ?? {};
-  if(Object.prototype.hasOwnProperty.call(duties, s)){
-    return 120;
-  }
+  if(Object.prototype.hasOwnProperty.call(duties, s)) return 120;
 
-  // 変7d みたいな "数字+英字" を許容（英字は最後1文字程度）
-  // 3桁/4桁/枝番
   if(/^\d{3,4}$/.test(s)) return 90;
   if(/^\d{3,4}-\d{1,2}$/.test(s)) return 95;
 
-  // 変行路・臨時行路
   if(/^変/.test(s)){
     if(/^変\d{3,4}(-\d{1,2})?$/.test(s)) return 85;
-    if(/^変\d{1,4}[A-Za-z]$/i.test(s)) return 80; // 変7d など（未登録時）
+    if(/^変\d{1,4}[A-Za-z]$/i.test(s)) return 80; // 変7d系
     return 40;
   }
   if(/^臨/.test(s)){
     if(/^臨\d{3,5}$/.test(s)) return 80;
     return 35;
   }
-
-  // "7d" など単体（日勤）— 未登録でも拾って下書きにしたい
   if(/^\d{1,2}[A-Za-z]$/i.test(s)) return 55;
 
-  // 英字が多いゴミ（例：181T）を落とす
+  // 英字ゴミ（181Tなど）を落とす
   if(/[A-Za-z]{2,}/.test(s) && !/^\d{1,4}[A-Za-z]$/i.test(s)) return 0;
-
-  // その他は弱い
   return 0;
 }
 
-/* 明確な M/D 形式の救済（対象月に一致するものだけ採用） */
 function applyExplicitMdPatterns(rows, rawText){
   const out = new Map(rows.map(r => [r.date, r]));
-  const t = norm(rawText).replaceAll("：", ":").replaceAll("／","/");
-
+  const t = norm(rawText).replaceAll("：",":").replaceAll("／","/");
   const re = /(\d{1,2})\/(\d{1,2})\s*[:：]?\s*([^\s]+)/g;
   let m;
   while((m = re.exec(t)) !== null){
@@ -746,28 +595,36 @@ function applyExplicitMdPatterns(rows, rawText){
     if(!ym) continue;
     const [y, selectedM] = ym.split("-").map(Number);
     if(mm !== selectedM) continue;
-
     const date = ymdFromDay(dd);
     if(!date) continue;
-
-    // スコアがゼロなら無視
     const sc = scoreDutyCandidate(duty);
     if(sc <= 0) continue;
-
     out.set(date, { include:true, date, duty, reason:"M/D形式（明確）" });
   }
   return [...out.values()].sort((a,b)=>a.date.localeCompare(b.date));
 }
 
+/* 自動選択の評価：件数＋マスタ一致数を重視 */
+function scoreExtraction(rows){
+  if(!rows || !rows.length) return 0;
+  let count = rows.length;
+  let masterHits = 0;
+  const duties = master?.duties ?? {};
+  for(const r of rows){
+    const d = norm(r.duty);
+    if(Object.prototype.hasOwnProperty.call(duties, d)) masterHits += 1;
+  }
+  return count * 10 + masterHits * 3;
+}
+
 /* ========= 抽出表示 ========= */
 function renderExtract(){
   if(!extractRows.length){
-    extractArea.innerHTML = "まだ抽出がありません。しきい値を変える／拡大スクショを使うと改善します。";
+    extractArea.innerHTML = "まだ抽出がありません。画像を拡大して撮り直すと改善します。";
     btnApplyExtract.disabled = true;
     btnClearExtract.disabled = true;
     return;
   }
-
   const html = `
     <table class="table">
       <thead>
@@ -800,7 +657,6 @@ function renderExtract(){
       btnApplyExtract.disabled = !extractRows.some(x=>x.include);
     });
   });
-
   extractArea.querySelectorAll('input[type="text"][data-duty]').forEach(inp => {
     inp.addEventListener("input", (e) => {
       const i = Number(e.target.getAttribute("data-duty"));
@@ -833,19 +689,17 @@ btnApplyExtract.addEventListener("click", () => {
   alert(`反映しました：${selected.length}件`);
 });
 
-/* ========= 画面全体描画 ========= */
+/* ========= 画面描画 ========= */
 function renderAll(){
-  // プレビュー
   if(!items.length){
     previewArea.textContent = "まだ入力がありません。";
   }else{
     const sorted = [...items].sort((a,b)=>a.date.localeCompare(b.date));
     previewArea.innerHTML = sorted.map(it=>{
       const c = classifyDuty(it.duty);
-      const detail =
-        c.kind==="auto" ? fmtTime(c.def) :
-        c.kind==="draft" ? "終日（下書き）／説明あり" :
-        c.kind==="off" ? "非番（出力なし）" : "—";
+      const detail = (c.kind==="auto") ? fmtTime(c.def)
+        : (c.kind==="draft") ? "終日（下書き）／説明あり"
+        : (c.kind==="off") ? "非番（出力なし）" : "—";
       return `
         <div class="item">
           <div class="row">
@@ -861,17 +715,10 @@ function renderAll(){
     }).join("");
   }
 
-  // CSVボタン
   const canExport = items.length > 0;
   btnDownload.disabled = !canExport;
   btnCopyCsv.disabled = !canExport;
-
-  if(!canExport){
-    csvHint.textContent = "※入力が1件以上あるとCSVを作れます。";
-  }else{
-    const ym = monthInput.value || "（未選択）";
-    csvHint.textContent = `※ファイル名：shift_${ym}.csv`;
-  }
+  csvHint.textContent = canExport ? `※ファイル名：shift_${monthInput.value || "shift"}.csv` : "※入力が1件以上あるとCSVを作れます。";
 }
 </script>
 </body>
