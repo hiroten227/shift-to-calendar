@@ -141,7 +141,7 @@
     <div style="font-weight:900">写メ → OCR（勤務表専用補正つき）</div>
     <div class="note" style="margin-top:6px;">
       画像は外部に送信しません（端末内でOCR）。<br>
-      写メは自動で白黒補正してからOCRします。タブレット画面の写メ向けです。
+      写メは自動で軽く補正してからOCRします。タブレット画面の写メ向けです。
     </div>
 
     <div class="grid" style="margin-top:10px;">
@@ -505,7 +505,7 @@ function preprocessImage(file) {
     img.onerror = reject;
 
     img.onload = () => {
-      const maxSize = 2400;
+      const maxSize = 2800;
       const scale = Math.min(1, maxSize / Math.max(img.width, img.height));
       const w = Math.round(img.width * scale);
       const h = Math.round(img.height * scale);
@@ -520,14 +520,14 @@ function preprocessImage(file) {
       const imageData = ctx.getImageData(0, 0, w, h);
       const data = imageData.data;
 
-      for(let i = 0; i < data.length; i += 4){
+      for (let i = 0; i < data.length; i += 4) {
         const r = data[i];
         const g = data[i + 1];
         const b = data[i + 2];
 
-        let gray = (r + g + b) / 3;
-
-        gray = gray > 145 ? 255 : 0;
+        let gray = 0.299 * r + 0.587 * g + 0.114 * b;
+        gray = (gray - 128) * 1.25 + 128;
+        gray = Math.max(0, Math.min(255, gray));
 
         data[i] = gray;
         data[i + 1] = gray;
@@ -708,7 +708,6 @@ function clearExtract(){
   btnApplyExtract.disabled = true;
   btnClearExtract.disabled = true;
 }
-
 btnClearExtract.addEventListener("click", () => clearExtract());
 
 btnApplyExtract.addEventListener("click", () => {
