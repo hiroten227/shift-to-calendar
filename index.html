@@ -130,9 +130,9 @@
     <div class="divider">
       <div class="row" style="flex-wrap:wrap;">
         <span class="pill ok">✅ 自動（時刻付き）</span>
-        <span class="pill.warn">⚠ 下書き（終日）</span>
-        <span class="pill.off">— 非番/休み（出力なし）</span>
-        <span class="pill.err">❌ 未入力</span>
+        <span class="pill warn">⚠ 下書き（終日）</span>
+        <span class="pill off">— 非番/休み（出力なし）</span>
+        <span class="pill err">❌ 未入力</span>
       </div>
     </div>
   </div>
@@ -459,12 +459,10 @@ btnOcr.addEventListener("click", async () => {
       processed,
       "jpn+eng",
       {
-        tessedit_char_whitelist: "0123456789dD変臨公休特育短-",
-        psm: 6,
         logger: (m) => {
-          if(m.status){
+          if (m.status) {
             const p = (typeof m.progress === "number") ? m.progress : null;
-            if(p !== null) setOcrUi(true, `${m.status}`, Math.floor(p * 100));
+            if (p !== null) setOcrUi(true, `${m.status}`, Math.floor(p * 100));
             else setOcrUi(true, `${m.status}`, null);
           }
         },
@@ -497,8 +495,8 @@ function setOcrUi(running, status, percent){
   btnOcr.disabled = running || !(imgInput.files && imgInput.files[0]);
 }
 
-// ★ スマホ向け・軽量高精度版 前処理
-async function preprocessImage(file) {
+// ★ スマホ向け・軽量版（高速・安定）
+function preprocessImage(file) {
   return new Promise((resolve, reject) => {
     const img = new Image();
     const reader = new FileReader();
@@ -514,59 +512,35 @@ async function preprocessImage(file) {
       const h = Math.round(img.height * scale);
 
       const canvas = document.createElement("canvas");
-      const ctx = canvas.getContext("2d");
+      const ctx = canvas.getContext("2d", { willReadFrequently: true });
       canvas.width = w;
       canvas.height = h;
 
       ctx.drawImage(img, 0, 0, w, h);
 
-      let imageData = ctx.getImageData(0, 0, w, h);
-      let data = imageData.data;
-
-      // ① ガンマ補正（細字を濃くする）
-      const gamma = 0.7;
-      const invGamma = 1 / gamma;
+      const imageData = ctx.getImageData(0, 0, w, h);
+      const data = imageData.data;
 
       for (let i = 0; i < data.length; i += 4) {
-        let gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-        gray = 255 * Math.pow(gray / 255, invGamma);
-        data[i] = data[i + 1] = data[i + 2] = gray;
-      }
+        const r = data[i];
+        const g = data[i + 1];
+        const b = data[i + 2];
 
-      ctx.putImageData(imageData, 0, 0);
+        // グレースケール
+        let gray = 0.299 * r + 0.587 * g + 0.114 * b;
 
-      // ② Adaptive Threshold（局所二値化）
-      imageData = ctx.getImageData(0, 0, w, h);
-      data = imageData.data;
+        // 軽いコントラスト補正
+        gray = (gray - 128) * 1.35 + 128;
 
-      const block = 12;
-      const C = 8;
+        // 少し明るめ補正
+        gray = gray + 8;
 
-      for (let y = 0; y < h; y++) {
-        for (let x = 0; x < w; x++) {
+        gray = Math.max(0, Math.min(255, gray));
 
-          let sum = 0, count = 0;
-
-          for (let dy = -block; dy <= block; dy++) {
-            for (let dx = -block; dx <= block; dx++) {
-              const ny = y + dy;
-              const nx = x + dx;
-              if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
-                const idx = (ny * w + nx) * 4;
-                sum += data[idx];
-                count++;
-              }
-            }
-          }
-
-          const avg = sum / count;
-          const idx = (y * w + x) * 4;
-          const gray = data[idx];
-
-          const bin = gray < (avg - C) ? 0 : 255;
-
-          data[idx] = data[idx + 1] = data[idx + 2] = bin;
-        }
+        data[i] = gray;
+        data[i + 1] = gray;
+        data[i + 2] = gray;
+        data[i + 3] = 255;
       }
 
       ctx.putImageData(imageData, 0, 0);
