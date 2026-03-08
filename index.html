@@ -138,10 +138,10 @@
   </div>
 
   <div class="card">
-    <div style="font-weight:900">写メ → OCR（勤務表専用補正つき）</div>
+    <div style="font-weight:900">写メ → OCR（勤務表帯切り出し版）</div>
     <div class="note" style="margin-top:6px;">
       画像は外部に送信しません（端末内でOCR）。<br>
-      写メは自動で軽く補正してからOCRします。タブレット画面の写メ向けです。
+      勤務表の「日付＋勤務」が並ぶ帯だけを自動で切り出してからOCRします。
     </div>
 
     <div class="grid" style="margin-top:10px;">
@@ -262,7 +262,7 @@ monthInput.addEventListener("change", () => {
     monthLabel.textContent = "未選択";
     return;
   }
-  const [y,m] = v.split("-");
+  const [y, m] = v.split("-");
   monthLabel.textContent = `${y}年${Number(m)}月`;
   clearExtract();
 });
@@ -289,7 +289,7 @@ function isDashLike(s){
 
 function addDaysYYYYMMDD(yyyyMMdd, delta){
   const [y,m,d] = yyyyMMdd.split("-").map(Number);
-  const dt = new Date(y, m-1, d);
+  const dt = new Date(y, m - 1, d);
   dt.setDate(dt.getDate() + delta);
   return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
 }
@@ -302,9 +302,9 @@ function ymdFromDay(day){
   if(!ym) return null;
   const [y,m] = ym.split("-").map(Number);
   const d = Number(day);
-  if(!(d>=1 && d<=31)) return null;
-  const dt = new Date(y, m-1, d);
-  if(dt.getMonth() !== (m-1)) return null;
+  if(!(d >= 1 && d <= 31)) return null;
+  const dt = new Date(y, m - 1, d);
+  if(dt.getMonth() !== (m - 1)) return null;
   return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
 }
 
@@ -326,7 +326,7 @@ fetch("master.json")
 
 function classifyDuty(raw){
   const d = norm(raw);
-  if(d==="") return {kind:"invalid", label:"未入力", duty:""};
+  if(d === "") return {kind:"invalid", label:"未入力", duty:""};
   if(isDashLike(d)) return {kind:"off", label:"非番（出力なし）", duty:"-"};
   if(OFF_WORDS.has(d)) return {kind:"off", label:"休み（出力なし）", duty:d};
 
@@ -338,6 +338,7 @@ function classifyDuty(raw){
   }
   return {kind:"draft", label:"下書き（終日）", duty:d};
 }
+
 function fmtTime(def){
   if(!def) return "";
   return `${def.start} → ${def.end}${def.overnight ? "（翌日）" : ""}`;
@@ -348,6 +349,7 @@ function csvEscape(value){
   if (/[",\n]/.test(s)) return `"${s.replaceAll('"', '""')}"`;
   return s;
 }
+
 function buildCsv(){
   const sorted = [...items].sort((a,b)=> a.date.localeCompare(b.date));
   const rows = [];
@@ -381,8 +383,10 @@ function buildCsv(){
       ]);
     }
   }
+
   return rows.map(cols => cols.map(csvEscape).join(",")).join("\n");
 }
+
 function downloadText(filename, text){
   const blob = new Blob([text], {type:"text/csv;charset=utf-8"});
   const url = URL.createObjectURL(blob);
@@ -495,7 +499,7 @@ function setOcrUi(running, status, percent){
   btnOcr.disabled = running || !(imgInput.files && imgInput.files[0]);
 }
 
-// ★ スマホ向け・軽量版（高速・安定）
+// ★ 勤務表の帯だけ切り出して軽く補正
 function preprocessImage(file) {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -506,17 +510,30 @@ function preprocessImage(file) {
     img.onerror = reject;
 
     img.onload = () => {
+      const sw = img.width;
+      const sh = img.height;
+
+      // この種類の勤務表向けの切り出し
+      const cropX = Math.round(sw * 0.15);
+      const cropY = Math.round(sh * 0.18);
+      const cropW = Math.round(sw * 0.82);
+      const cropH = Math.round(sh * 0.30);
+
       const maxSize = 2400;
-      const scale = Math.min(1, maxSize / Math.max(img.width, img.height));
-      const w = Math.round(img.width * scale);
-      const h = Math.round(img.height * scale);
+      const scale = Math.min(1, maxSize / Math.max(cropW, cropH));
+      const w = Math.round(cropW * scale);
+      const h = Math.round(cropH * scale);
 
       const canvas = document.createElement("canvas");
       const ctx = canvas.getContext("2d", { willReadFrequently: true });
       canvas.width = w;
       canvas.height = h;
 
-      ctx.drawImage(img, 0, 0, w, h);
+      ctx.drawImage(
+        img,
+        cropX, cropY, cropW, cropH,
+        0, 0, w, h
+      );
 
       const imageData = ctx.getImageData(0, 0, w, h);
       const data = imageData.data;
@@ -526,15 +543,9 @@ function preprocessImage(file) {
         const g = data[i + 1];
         const b = data[i + 2];
 
-        // グレースケール
         let gray = 0.299 * r + 0.587 * g + 0.114 * b;
-
-        // 軽いコントラスト補正
         gray = (gray - 128) * 1.35 + 128;
-
-        // 少し明るめ補正
         gray = gray + 8;
-
         gray = Math.max(0, Math.min(255, gray));
 
         data[i] = gray;
@@ -571,11 +582,12 @@ function extractFromOcrText(text){
     return (
       s.startsWith("臨") ||
       s.startsWith("変") ||
-      /^[0-9]{3,4}(-[0-9]{1,2})?$/.test(s) ||
+      /^[0-9]{2,4}(-[0-9]{1,2})?$/.test(s) ||
       /^[0-9]{1,4}[A-Za-z]$/i.test(s)
     );
   };
 
+  // ① M/D形式
   const reMD = /(\d{1,2})\/(\d{1,2})\s*[:：]?\s*([^\s]+)/g;
   let m;
   while((m = reMD.exec(t)) !== null){
@@ -595,6 +607,7 @@ function extractFromOcrText(text){
     rows.push({ include:true, date, duty, reason:"M/D形式" });
   }
 
+  // ② 日＋直後
   const reD = /(?:^| )(\d{1,2})(?:日)?\s*[:：]?\s*([^\s]+)/g;
   while((m = reD.exec(t)) !== null){
     const day = Number(m[1]);
@@ -609,25 +622,27 @@ function extractFromOcrText(text){
     rows.push({ include:true, date, duty, reason:"日＋直後" });
   }
 
-  const tokens = t.split(/[\s,;]+/g).map(s=>norm(s)).filter(Boolean);
+  // ③ 近傍保険
+  const tokens = t.split(/[\s,;]+/g).map(s => norm(s)).filter(Boolean);
   const hasDate = (date) => rows.some(r => r.date === date);
 
-  for(let i=0;i<tokens.length;i++){
+  for(let i = 0; i < tokens.length; i++){
     const md = tokens[i].match(/^(\d{1,2})$/) || tokens[i].match(/^(\d{1,2})日$/);
     if(!md) continue;
+
     const day = Number(md[1]);
-    if(!(day>=1 && day<=31)) continue;
+    if(!(day >= 1 && day <= 31)) continue;
 
     const date = ymdFromDay(day);
     if(!date) continue;
     if(hasDate(date)) continue;
 
     const start = Math.max(0, i - 12);
-    const end   = Math.min(tokens.length - 1, i + 12);
+    const end = Math.min(tokens.length - 1, i + 12);
 
     let picked = null;
-    for(let j=start; j<=end; j++){
-      if(j===i) continue;
+    for(let j = start; j <= end; j++){
+      if(j === i) continue;
       const cand = tokens[j];
       if(isDashLike(cand)) continue;
       if(looksDuty(cand)){
@@ -642,8 +657,8 @@ function extractFromOcrText(text){
   }
 
   const priority = (reason) => {
-    if(reason==="M/D形式") return 3;
-    if(reason==="日＋直後") return 2;
+    if(reason === "M/D形式") return 3;
+    if(reason === "日＋直後") return 2;
     return 1;
   };
 
@@ -655,7 +670,7 @@ function extractFromOcrText(text){
     }
   }
 
-  return [...map.values()].sort((a,b)=>a.date.localeCompare(b.date));
+  return [...map.values()].sort((a,b) => a.date.localeCompare(b.date));
 }
 
 function renderExtract(){
@@ -695,7 +710,7 @@ function renderExtract(){
     cb.addEventListener("change", (e) => {
       const i = Number(e.target.getAttribute("data-idx"));
       extractRows[i].include = e.target.checked;
-      btnApplyExtract.disabled = !extractRows.some(x=>x.include);
+      btnApplyExtract.disabled = !extractRows.some(x => x.include);
     });
   });
 
@@ -706,7 +721,7 @@ function renderExtract(){
     });
   });
 
-  btnApplyExtract.disabled = !extractRows.some(x=>x.include);
+  btnApplyExtract.disabled = !extractRows.some(x => x.include);
   btnClearExtract.disabled = false;
 }
 
@@ -716,6 +731,7 @@ function clearExtract(){
   btnApplyExtract.disabled = true;
   btnClearExtract.disabled = true;
 }
+
 btnClearExtract.addEventListener("click", () => clearExtract());
 
 btnApplyExtract.addEventListener("click", () => {
@@ -734,9 +750,9 @@ btnApplyExtract.addEventListener("click", () => {
 });
 
 function badge(kind, label){
-  if(kind==="auto") return `<span class="pill ok">✅ ${label}</span>`;
-  if(kind==="draft") return `<span class="pill warn">⚠ ${label}</span>`;
-  if(kind==="off") return `<span class="pill off">— ${label}</span>`;
+  if(kind === "auto") return `<span class="pill ok">✅ ${label}</span>`;
+  if(kind === "draft") return `<span class="pill warn">⚠ ${label}</span>`;
+  if(kind === "off") return `<span class="pill off">— ${label}</span>`;
   return `<span class="pill err">❌ ${label}</span>`;
 }
 
@@ -744,13 +760,14 @@ function renderAll(){
   if(!items.length){
     previewArea.textContent = "まだ入力がありません。";
   }else{
-    const sorted = [...items].sort((a,b)=>a.date.localeCompare(b.date));
-    previewArea.innerHTML = sorted.map(it=>{
+    const sorted = [...items].sort((a,b) => a.date.localeCompare(b.date));
+    previewArea.innerHTML = sorted.map(it => {
       const c = classifyDuty(it.duty);
       const detail =
-        c.kind==="auto" ? fmtTime(c.def) :
-        c.kind==="draft" ? "終日（下書き）／説明あり" :
-        c.kind==="off" ? "非番/休み（出力なし）" : "—";
+        c.kind === "auto" ? fmtTime(c.def) :
+        c.kind === "draft" ? "終日（下書き）／説明あり" :
+        c.kind === "off" ? "非番/休み（出力なし）" : "—";
+
       return `
         <div class="item">
           <div class="row">
