@@ -7,89 +7,169 @@
 
   <style>
     :root {
-      --bg:#f6f7fb; --card:#fff; --line:#e5e7eb;
-      --text:#111827; --muted:#6b7280;
+      --bg:#f6f7fb;
+      --card:#fff;
+      --line:#e5e7eb;
+      --text:#111827;
+      --muted:#6b7280;
+      --accent:#111827;
     }
     body {
       font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans JP", sans-serif;
-      margin:0; background:var(--bg); color:var(--text);
+      margin:0;
+      background:var(--bg);
+      color:var(--text);
     }
-    header { padding:16px; background:#fff; border-bottom:1px solid var(--line); }
-    h1 { margin:0; font-size:18px; }
-    main { padding:16px; display:grid; gap:12px; max-width:980px; margin:0 auto; }
-    .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px; }
-    .row { display:flex; justify-content:space-between; gap:10px; font-size:14px; align-items:center; flex-wrap:wrap; }
+    header {
+      padding:16px;
+      background:#fff;
+      border-bottom:1px solid var(--line);
+    }
+    h1 {
+      margin:0;
+      font-size:18px;
+    }
+    main {
+      padding:16px;
+      display:grid;
+      gap:12px;
+      max-width:1000px;
+      margin:0 auto;
+    }
+    .card {
+      background:var(--card);
+      border:1px solid var(--line);
+      border-radius:12px;
+      padding:14px;
+    }
+    .row {
+      display:flex;
+      justify-content:space-between;
+      gap:10px;
+      font-size:14px;
+      align-items:center;
+      flex-wrap:wrap;
+    }
     .label { color:var(--muted); }
     .value { font-weight:800; }
-    .note { color:var(--muted); font-size:12px; line-height:1.5; margin-top:8px; }
-    input[type="month"], input[type="date"], input[type="text"], textarea{
-      width:100%; padding:10px 12px; border-radius:12px; border:1px solid #d1d5db;
-      background:#fff; font-size:15px; box-sizing:border-box;
+    .note {
+      color:var(--muted);
+      font-size:12px;
+      line-height:1.6;
+      margin-top:8px;
+    }
+    input[type="month"], input[type="date"], input[type="text"], textarea {
+      width:100%;
+      padding:10px 12px;
+      border-radius:12px;
+      border:1px solid #d1d5db;
+      background:#fff;
+      font-size:15px;
+      box-sizing:border-box;
     }
     textarea {
-      min-height: 120px;
+      min-height:140px;
       font-family: ui-monospace, Menlo, Consolas, monospace;
       font-size: 13px;
     }
-    button{
-      width:100%; padding:12px 14px; border-radius:12px; border:1px solid #d1d5db;
-      background:#111827; color:#fff; font-size:15px; font-weight:900;
+    button {
+      width:100%;
+      padding:12px 14px;
+      border-radius:12px;
+      border:1px solid #d1d5db;
+      background:var(--accent);
+      color:#fff;
+      font-size:15px;
+      font-weight:900;
       cursor:pointer;
     }
-    button:disabled { opacity:0.5; cursor:not-allowed; }
-    .btn-sub{ background:#fff; color:#111827; }
-    .grid{ display:grid; gap:10px; }
-    .pill{
-      display:inline-flex; align-items:center; gap:6px;
-      font-size:12px; padding:4px 10px; border-radius:999px;
-      border:1px solid var(--line); background:#fff; color:var(--text);
+    button:disabled {
+      opacity:0.5;
+      cursor:not-allowed;
     }
-    .pill.ok{ border-color:#bbf7d0; background:#f0fdf4; }
-    .pill.warn{ border-color:#fde68a; background:#fffbeb; }
-    .pill.off{ border-color:#e5e7eb; background:#f9fafb; color:#374151; }
-    .pill.err{ border-color:#fecaca; background:#fef2f2; }
-    .divider{ border-top:1px solid var(--line); margin-top:10px; padding-top:10px; }
-    .item{ padding:10px 0; border-top:1px solid var(--line); }
-    .item:first-child{ border-top:none; padding-top:0; }
-    .mono{ font-family: ui-monospace, Menlo, Consolas, monospace; }
-    .small{ font-size:12px; color:var(--muted); }
-
-    .two-col { display:grid; grid-template-columns: 1fr; gap:10px; }
+    .btn-sub {
+      background:#fff;
+      color:#111827;
+    }
+    .grid { display:grid; gap:10px; }
+    .pill {
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      font-size:12px;
+      padding:4px 10px;
+      border-radius:999px;
+      border:1px solid var(--line);
+      background:#fff;
+      color:var(--text);
+    }
+    .pill.ok { border-color:#bbf7d0; background:#f0fdf4; }
+    .pill.warn { border-color:#fde68a; background:#fffbeb; }
+    .pill.off { border-color:#e5e7eb; background:#f9fafb; color:#374151; }
+    .pill.err { border-color:#fecaca; background:#fef2f2; }
+    .divider {
+      border-top:1px solid var(--line);
+      margin-top:10px;
+      padding-top:10px;
+    }
+    .item {
+      padding:10px 0;
+      border-top:1px solid var(--line);
+    }
+    .item:first-child {
+      border-top:none;
+      padding-top:0;
+    }
+    .mono {
+      font-family: ui-monospace, Menlo, Consolas, monospace;
+    }
+    .small {
+      font-size:12px;
+      color:var(--muted);
+    }
+    .two-col {
+      display:grid;
+      grid-template-columns: 1fr;
+      gap:12px;
+    }
     @media (min-width: 980px){
-      .two-col { grid-template-columns: 1fr 1fr; }
+      .two-col {
+        grid-template-columns: 1fr 1fr;
+      }
     }
-
     .table {
       width:100%;
       border-collapse: collapse;
-      font-size: 13px;
+      font-size:13px;
     }
     .table th, .table td {
-      border-top: 1px solid var(--line);
-      padding: 8px;
-      vertical-align: top;
+      border-top:1px solid var(--line);
+      padding:8px;
+      vertical-align:top;
     }
-    .table th { text-align:left; color: var(--muted); font-weight: 700; }
+    .table th {
+      text-align:left;
+      color:var(--muted);
+      font-weight:700;
+    }
     .chk { transform: scale(1.2); }
-
     .progress {
-      height: 10px;
-      background: #eef2ff;
-      border: 1px solid #e5e7eb;
-      border-radius: 999px;
-      overflow: hidden;
+      height:10px;
+      background:#eef2ff;
+      border:1px solid #e5e7eb;
+      border-radius:999px;
+      overflow:hidden;
     }
-    .progress > div{
-      height: 100%;
-      width: 0%;
-      background: #111827;
+    .progress > div {
+      height:100%;
+      width:0%;
+      background:#111827;
     }
-
     .preview-wrap {
       display:grid;
       gap:10px;
     }
-    .img-preview {
+    .img-preview, .cell-strip {
       width:100%;
       max-height:280px;
       object-fit:contain;
@@ -98,12 +178,34 @@
       background:#fff;
     }
     .cell-strip {
+      max-height:180px;
+    }
+    .tap-wrap {
+      position:relative;
+      display:inline-block;
       width:100%;
-      max-height:220px;
+    }
+    .tap-image {
+      width:100%;
+      max-height:420px;
       object-fit:contain;
       border:1px solid var(--line);
       border-radius:12px;
       background:#fff;
+      cursor:crosshair;
+      display:block;
+    }
+    .tap-marker {
+      position:absolute;
+      width:18px;
+      height:18px;
+      border-radius:999px;
+      background:#ef4444;
+      border:2px solid #fff;
+      box-shadow:0 0 0 2px #ef4444;
+      transform:translate(-50%, -50%);
+      pointer-events:none;
+      display:none;
     }
   </style>
 </head>
@@ -146,14 +248,24 @@
   </div>
 
   <div class="card">
-    <div style="font-weight:900">写メ → OCR（31分割セル読取版＋deskew）</div>
+    <div style="font-weight:900">写メ → OCR（勤務表タップ指定版）</div>
     <div class="note" style="margin-top:6px;">
       画像は外部に送信しません（端末内でOCR）。<br>
-      勤務表の帯を切り出し、軽く傾き補正して、1日ごとのセルに分割して個別OCRします。
+      先に画像を表示し、<b>勤務表の中央あたりを1回タップ</b>してからOCRします。
     </div>
 
     <div class="grid" style="margin-top:10px;">
       <input id="imgInput" type="file" accept="image/*" />
+
+      <div>
+        <div class="small" style="font-weight:900; color:#111827;">勤務表位置をタップ</div>
+        <div class="tap-wrap">
+          <img id="tapImage" class="tap-image" alt="タップ用画像" />
+          <div id="tapMarker" class="tap-marker"></div>
+        </div>
+        <div class="note">※勤務表の中央あたりを1回タップしてください。赤い点が出たらOKです。</div>
+      </div>
+
       <button id="btnOcr" type="button" disabled>OCR実行</button>
 
       <div class="row">
@@ -239,6 +351,9 @@ const monthLabel = document.getElementById("monthLabel");
 const masterLabel = document.getElementById("masterLabel");
 
 const imgInput = document.getElementById("imgInput");
+const tapImage = document.getElementById("tapImage");
+const tapMarker = document.getElementById("tapMarker");
+
 const btnOcr = document.getElementById("btnOcr");
 const ocrStatus = document.getElementById("ocrStatus");
 const ocrBar = document.getElementById("ocrBar");
@@ -263,6 +378,9 @@ const csvHint = document.getElementById("csvHint");
 let master = null;
 let items = [];
 let extractRows = [];
+let uploadedDataUrl = "";
+let tapX = null; // 0-1
+let tapY = null; // 0-1
 
 const now = new Date();
 monthInput.value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
@@ -452,7 +570,41 @@ btnCopyCsv.onclick = async () => {
 };
 
 imgInput.addEventListener("change", () => {
-  btnOcr.disabled = !(imgInput.files && imgInput.files[0]);
+  const f = imgInput.files?.[0];
+  if(!f){
+    uploadedDataUrl = "";
+    tapImage.removeAttribute("src");
+    tapMarker.style.display = "none";
+    btnOcr.disabled = true;
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    uploadedDataUrl = e.target.result;
+    tapImage.src = uploadedDataUrl;
+    tapMarker.style.display = "none";
+    tapX = null;
+    tapY = null;
+    btnOcr.disabled = true;
+    ocrText.value = "";
+    clearExtract();
+  };
+  reader.readAsDataURL(f);
+});
+
+tapImage.addEventListener("click", (e) => {
+  if(!uploadedDataUrl) return;
+
+  const rect = tapImage.getBoundingClientRect();
+  tapX = (e.clientX - rect.left) / rect.width;
+  tapY = (e.clientY - rect.top) / rect.height;
+
+  tapMarker.style.left = `${tapX * 100}%`;
+  tapMarker.style.top = `${tapY * 100}%`;
+  tapMarker.style.display = "block";
+
+  btnOcr.disabled = false;
 });
 
 btnOcr.addEventListener("click", async () => {
@@ -461,6 +613,10 @@ btnOcr.addEventListener("click", async () => {
 
   if(!monthInput.value){
     alert("先に対象月を選んでください（例：2026-03）");
+    return;
+  }
+  if(tapX === null || tapY === null){
+    alert("先に勤務表の中央あたりを1回タップしてください。");
     return;
   }
 
@@ -483,8 +639,8 @@ btnOcr.addEventListener("click", async () => {
     renderAll();
   }catch(e){
     console.error(e);
-    setOcrUi(false, "失敗（撮り直し推奨）", 0);
-    alert("OCRに失敗しました。画像を明るく・まっすぐ撮って再試行してください。");
+    setOcrUi(false, "失敗（再タップ推奨）", 0);
+    alert("OCRに失敗しました。勤務表の中央をタップし直して再試行してください。");
   }
 });
 
@@ -493,7 +649,7 @@ function setOcrUi(running, status, percent){
   if(typeof percent === "number"){
     ocrBar.style.width = `${Math.max(0, Math.min(100, percent))}%`;
   }
-  btnOcr.disabled = running || !(imgInput.files && imgInput.files[0]);
+  btnOcr.disabled = running || !(imgInput.files && imgInput.files[0]) || tapX === null || tapY === null;
 }
 
 function preprocessImage(file) {
@@ -509,10 +665,18 @@ function preprocessImage(file) {
       const sw = img.width;
       const sh = img.height;
 
-      const cropX = Math.round(sw * 0.04);
-      const cropY = Math.round(sh * 0.08);
-      const cropW = Math.round(sw * 0.93);
-      const cropH = Math.round(sh * 0.34);
+      const centerX = tapX * sw;
+      const centerY = tapY * sh;
+
+      // タップ位置を中心に勤務表帯を切る
+      const cropW = Math.round(sw * 0.88);
+      const cropH = Math.round(sh * 0.26);
+
+      let cropX = Math.round(centerX - cropW / 2);
+      let cropY = Math.round(centerY - cropH / 2);
+
+      cropX = Math.max(0, Math.min(cropX, sw - cropW));
+      cropY = Math.max(0, Math.min(cropY, sh - cropH));
 
       const maxSize = 3200;
       const scale = Math.min(1, maxSize / Math.max(cropW, cropH));
@@ -539,7 +703,7 @@ function preprocessImage(file) {
         const b = data[i + 2];
 
         let gray = 0.299 * r + 0.587 * g + 0.114 * b;
-        gray = (gray - 128) * 1.25 + 128;
+        gray = (gray - 128) * 1.2 + 128;
         gray = gray + 6;
         gray = Math.max(0, Math.min(255, gray));
 
@@ -551,13 +715,12 @@ function preprocessImage(file) {
 
       ctx.putImageData(imageData, 0, 0);
 
-      const deskewed = deskewImage(canvas);
-      const stripCanvas = extractDutyStrip(deskewed);
+      const stripCanvas = extractDutyStrip(canvas);
 
       resolve({
-        fullCanvas: deskewed,
+        fullCanvas: canvas,
         stripCanvas,
-        fullDataUrl: deskewed.toDataURL("image/png"),
+        fullDataUrl: canvas.toDataURL("image/png"),
         stripDataUrl: stripCanvas.toDataURL("image/png")
       });
     };
@@ -566,78 +729,15 @@ function preprocessImage(file) {
   });
 }
 
-// ★ 実際に角度ごとに回転して採点する軽量 deskew
-function deskewImage(srcCanvas) {
-  const sample = document.createElement("canvas");
-  const sctx = sample.getContext("2d");
-
-  const scale = Math.min(1, 600 / srcCanvas.width);
-  sample.width = Math.round(srcCanvas.width * scale);
-  sample.height = Math.round(srcCanvas.height * scale);
-  sctx.drawImage(srcCanvas, 0, 0, sample.width, sample.height);
-
-  let bestAngle = 0;
-  let bestScore = -Infinity;
-
-  for (let angle = -5; angle <= 5; angle += 0.5) {
-    const test = document.createElement("canvas");
-    const tctx = test.getContext("2d");
-    test.width = sample.width;
-    test.height = sample.height;
-
-    tctx.fillStyle = "#fff";
-    tctx.fillRect(0, 0, test.width, test.height);
-
-    tctx.translate(test.width / 2, test.height / 2);
-    tctx.rotate(angle * Math.PI / 180);
-    tctx.drawImage(sample, -sample.width / 2, -sample.height / 2);
-
-    const imgData = tctx.getImageData(0, 0, test.width, test.height).data;
-
-    let rowSums = [];
-    for (let y = 0; y < test.height; y += 2) {
-      let sum = 0;
-      for (let x = 0; x < test.width; x += 2) {
-        const idx = (y * test.width + x) * 4;
-        const gray = imgData[idx];
-        sum += (255 - gray);
-      }
-      rowSums.push(sum);
-    }
-
-    let score = 0;
-    for (let i = 1; i < rowSums.length; i++) {
-      score += Math.abs(rowSums[i] - rowSums[i - 1]);
-    }
-
-    if (score > bestScore) {
-      bestScore = score;
-      bestAngle = angle;
-    }
-  }
-
-  const out = document.createElement("canvas");
-  const octx = out.getContext("2d");
-  out.width = srcCanvas.width;
-  out.height = srcCanvas.height;
-
-  octx.fillStyle = "#fff";
-  octx.fillRect(0, 0, out.width, out.height);
-  octx.translate(out.width / 2, out.height / 2);
-  octx.rotate(bestAngle * Math.PI / 180);
-  octx.drawImage(srcCanvas, -srcCanvas.width / 2, -srcCanvas.height / 2);
-
-  return out;
-}
-
 function extractDutyStrip(srcCanvas){
   const sw = srcCanvas.width;
   const sh = srcCanvas.height;
 
-  const sx = Math.round(sw * 0.19);
-  const sy = Math.round(sh * 0.22);
+  // タップ方式用：画像内の勤務行だけを少し下寄りに取る
+  const sx = Math.round(sw * 0.18);
+  const sy = Math.round(sh * 0.38);
   const sw2 = Math.round(sw * 0.77);
-  const sh2 = Math.round(sh * 0.28);
+  const sh2 = Math.round(sh * 0.26);
 
   const out = document.createElement("canvas");
   const octx = out.getContext("2d", { willReadFrequently: true });
@@ -652,8 +752,8 @@ async function runCellOcr(stripCanvas){
   const results = [];
   const totalDays = 31;
 
-  const topIgnore = Math.round(stripCanvas.height * 0.32);
-  const rowHeight = Math.round(stripCanvas.height * 0.44);
+  const topIgnore = Math.round(stripCanvas.height * 0.25);
+  const rowHeight = Math.round(stripCanvas.height * 0.60);
   const usableY = Math.min(topIgnore, stripCanvas.height - 1);
   const usableH = Math.max(20, Math.min(rowHeight, stripCanvas.height - usableY));
 
@@ -667,8 +767,8 @@ async function runCellOcr(stripCanvas){
     const cellCanvas = document.createElement("canvas");
     const cctx = cellCanvas.getContext("2d", { willReadFrequently: true });
 
-    cellCanvas.width = cw * 5;
-    cellCanvas.height = usableH * 5;
+    cellCanvas.width = cw * 6;
+    cellCanvas.height = usableH * 6;
 
     cctx.drawImage(
       stripCanvas,
@@ -681,7 +781,7 @@ async function runCellOcr(stripCanvas){
 
     for(let i = 0; i < data.length; i += 4){
       let gray = 0.299 * data[i] + 0.587 * data[i+1] + 0.114 * data[i+2];
-      gray = gray > 170 ? 255 : 0;
+      gray = gray > 175 ? 255 : 0;
       data[i] = gray;
       data[i+1] = gray;
       data[i+2] = gray;
@@ -767,7 +867,6 @@ function buildRowsFromCellResults(cellResults){
 
     const date = ymdFromDay(r.day);
     if(!date) continue;
-
     if(isDashLike(r.duty)) continue;
 
     rows.push({
