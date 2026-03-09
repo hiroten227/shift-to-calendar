@@ -180,32 +180,29 @@
     .cell-strip {
       max-height:180px;
     }
-    .tap-wrap {
+    .select-wrap {
       position:relative;
-      display:inline-block;
       width:100%;
+      max-width:100%;
+      user-select:none;
     }
-    .tap-image {
+    .select-image {
       width:100%;
-      max-height:420px;
+      max-height:520px;
       object-fit:contain;
       border:1px solid var(--line);
       border-radius:12px;
       background:#fff;
-      cursor:crosshair;
       display:block;
+      cursor:crosshair;
     }
-    .tap-marker {
+    .selection-box {
       position:absolute;
-      width:18px;
-      height:18px;
-      border-radius:999px;
-      background:#ef4444;
-      border:2px solid #fff;
-      box-shadow:0 0 0 2px #ef4444;
-      transform:translate(-50%, -50%);
-      pointer-events:none;
+      border:2px solid #ef4444;
+      background:rgba(239,68,68,0.12);
       display:none;
+      pointer-events:none;
+      box-sizing:border-box;
     }
   </style>
 </head>
@@ -248,22 +245,23 @@
   </div>
 
   <div class="card">
-    <div style="font-weight:900">写メ → OCR（勤務表タップ指定版）</div>
+    <div style="font-weight:900">写メ → OCR（勤務行ドラッグ選択版）</div>
     <div class="note" style="margin-top:6px;">
       画像は外部に送信しません（端末内でOCR）。<br>
-      先に画像を表示し、<b>勤務表の中央あたりを1回タップ</b>してからOCRします。
+      <b>勤務が並んでいる1行だけをドラッグで囲んでください。</b><br>
+      罫線やタイトルをなるべく含めず、勤務文字の行を横長に選ぶのがコツです。
     </div>
 
     <div class="grid" style="margin-top:10px;">
       <input id="imgInput" type="file" accept="image/*" />
 
       <div>
-        <div class="small" style="font-weight:900; color:#111827;">勤務表位置をタップ</div>
-        <div class="tap-wrap">
-          <img id="tapImage" class="tap-image" alt="タップ用画像" />
-          <div id="tapMarker" class="tap-marker"></div>
+        <div class="small" style="font-weight:900; color:#111827;">勤務行をドラッグ選択</div>
+        <div id="selectWrap" class="select-wrap">
+          <img id="selectImage" class="select-image" alt="選択用画像" />
+          <div id="selectionBox" class="selection-box"></div>
         </div>
-        <div class="note">※勤務表の中央あたりを1回タップしてください。赤い点が出たらOKです。</div>
+        <div class="note">※勤務の1行だけを、左端から右端まで細長く囲んでください。</div>
       </div>
 
       <button id="btnOcr" type="button" disabled>OCR実行</button>
@@ -351,8 +349,9 @@ const monthLabel = document.getElementById("monthLabel");
 const masterLabel = document.getElementById("masterLabel");
 
 const imgInput = document.getElementById("imgInput");
-const tapImage = document.getElementById("tapImage");
-const tapMarker = document.getElementById("tapMarker");
+const selectWrap = document.getElementById("selectWrap");
+const selectImage = document.getElementById("selectImage");
+const selectionBox = document.getElementById("selectionBox");
 
 const btnOcr = document.getElementById("btnOcr");
 const ocrStatus = document.getElementById("ocrStatus");
@@ -379,8 +378,8 @@ let master = null;
 let items = [];
 let extractRows = [];
 let uploadedDataUrl = "";
-let tapX = null; // 0-1
-let tapY = null; // 0-1
+let selection = null;
+let dragState = null;
 
 const now = new Date();
 monthInput.value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
@@ -572,38 +571,97 @@ btnCopyCsv.onclick = async () => {
 imgInput.addEventListener("change", () => {
   const f = imgInput.files?.[0];
   if(!f){
-    uploadedDataUrl = "";
-    tapImage.removeAttribute("src");
-    tapMarker.style.display = "none";
-    btnOcr.disabled = true;
+    resetSelectionState();
     return;
   }
 
   const reader = new FileReader();
   reader.onload = e => {
     uploadedDataUrl = e.target.result;
-    tapImage.src = uploadedDataUrl;
-    tapMarker.style.display = "none";
-    tapX = null;
-    tapY = null;
+    selectImage.src = uploadedDataUrl;
+    selection = null;
+    dragState = null;
+    hideSelectionBox();
     btnOcr.disabled = true;
     ocrText.value = "";
+    processedPreview.removeAttribute("src");
+    stripPreview.removeAttribute("src");
     clearExtract();
   };
   reader.readAsDataURL(f);
 });
 
-tapImage.addEventListener("click", (e) => {
+function resetSelectionState(){
+  uploadedDataUrl = "";
+  selection = null;
+  dragState = null;
+  selectImage.removeAttribute("src");
+  hideSelectionBox();
+  btnOcr.disabled = true;
+}
+
+function getLocalPoint(clientX, clientY){
+  const rect = selectImage.getBoundingClientRect();
+  let x = (clientX - rect.left) / rect.width;
+  let y = (clientY - rect.top) / rect.height;
+  x = Math.max(0, Math.min(1, x));
+  y = Math.max(0, Math.min(1, y));
+  return {x, y};
+}
+
+function showSelectionBox(sel){
+  selectionBox.style.display = "block";
+  selectionBox.style.left = `${sel.x * 100}%`;
+  selectionBox.style.top = `${sel.y * 100}%`;
+  selectionBox.style.width = `${sel.w * 100}%`;
+  selectionBox.style.height = `${sel.h * 100}%`;
+}
+
+function hideSelectionBox(){
+  selectionBox.style.display = "none";
+}
+
+selectImage.addEventListener("pointerdown", (e) => {
   if(!uploadedDataUrl) return;
+  e.preventDefault();
+  const p = getLocalPoint(e.clientX, e.clientY);
+  dragState = {startX: p.x, startY: p.y, currentX: p.x, currentY: p.y};
+  showSelectionBox({x:p.x, y:p.y, w:0.001, h:0.001});
+});
 
-  const rect = tapImage.getBoundingClientRect();
-  tapX = (e.clientX - rect.left) / rect.width;
-  tapY = (e.clientY - rect.top) / rect.height;
+window.addEventListener("pointermove", (e) => {
+  if(!dragState) return;
+  const p = getLocalPoint(e.clientX, e.clientY);
+  dragState.currentX = p.x;
+  dragState.currentY = p.y;
 
-  tapMarker.style.left = `${tapX * 100}%`;
-  tapMarker.style.top = `${tapY * 100}%`;
-  tapMarker.style.display = "block";
+  const x = Math.min(dragState.startX, dragState.currentX);
+  const y = Math.min(dragState.startY, dragState.currentY);
+  const w = Math.abs(dragState.currentX - dragState.startX);
+  const h = Math.abs(dragState.currentY - dragState.startY);
 
+  showSelectionBox({x, y, w, h});
+});
+
+window.addEventListener("pointerup", () => {
+  if(!dragState) return;
+
+  const x = Math.min(dragState.startX, dragState.currentX);
+  const y = Math.min(dragState.startY, dragState.currentY);
+  const w = Math.abs(dragState.currentX - dragState.startX);
+  const h = Math.abs(dragState.currentY - dragState.startY);
+
+  dragState = null;
+
+  if(w < 0.03 || h < 0.02){
+    selection = null;
+    hideSelectionBox();
+    btnOcr.disabled = true;
+    return;
+  }
+
+  selection = {x, y, w, h};
+  showSelectionBox(selection);
   btnOcr.disabled = false;
 });
 
@@ -615,8 +673,8 @@ btnOcr.addEventListener("click", async () => {
     alert("先に対象月を選んでください（例：2026-03）");
     return;
   }
-  if(tapX === null || tapY === null){
-    alert("先に勤務表の中央あたりを1回タップしてください。");
+  if(!selection){
+    alert("先に勤務行をドラッグ選択してください。");
     return;
   }
 
@@ -639,8 +697,8 @@ btnOcr.addEventListener("click", async () => {
     renderAll();
   }catch(e){
     console.error(e);
-    setOcrUi(false, "失敗（再タップ推奨）", 0);
-    alert("OCRに失敗しました。勤務表の中央をタップし直して再試行してください。");
+    setOcrUi(false, "失敗（選択し直し推奨）", 0);
+    alert("OCRに失敗しました。勤務行を少し広めに囲んで再試行してください。");
   }
 });
 
@@ -649,7 +707,7 @@ function setOcrUi(running, status, percent){
   if(typeof percent === "number"){
     ocrBar.style.width = `${Math.max(0, Math.min(100, percent))}%`;
   }
-  btnOcr.disabled = running || !(imgInput.files && imgInput.files[0]) || tapX === null || tapY === null;
+  btnOcr.disabled = running || !(imgInput.files && imgInput.files[0]) || !selection;
 }
 
 function preprocessImage(file) {
@@ -665,23 +723,24 @@ function preprocessImage(file) {
       const sw = img.width;
       const sh = img.height;
 
-      const centerX = tapX * sw;
-      const centerY = tapY * sh;
+      let cropX = Math.round(selection.x * sw);
+      let cropY = Math.round(selection.y * sh);
+      let cropW = Math.round(selection.w * sw);
+      let cropH = Math.round(selection.h * sh);
 
-      // タップ位置を中心に勤務表帯を切る
-      const cropW = Math.round(sw * 0.88);
-      const cropH = Math.round(sh * 0.26);
+      // 少し余白を足す
+      const padX = Math.round(cropW * 0.02);
+      const padY = Math.round(cropH * 0.20);
 
-      let cropX = Math.round(centerX - cropW / 2);
-      let cropY = Math.round(centerY - cropH / 2);
+      cropX = Math.max(0, cropX - padX);
+      cropY = Math.max(0, cropY - padY);
+      cropW = Math.min(sw - cropX, cropW + padX * 2);
+      cropH = Math.min(sh - cropY, cropH + padY * 2);
 
-      cropX = Math.max(0, Math.min(cropX, sw - cropW));
-      cropY = Math.max(0, Math.min(cropY, sh - cropH));
-
-      const maxSize = 3200;
-      const scale = Math.min(1, maxSize / Math.max(cropW, cropH));
-      const w = Math.round(cropW * scale);
-      const h = Math.round(cropH * scale);
+      const maxWidth = 3200;
+      const scale = Math.min(1, maxWidth / cropW);
+      const w = Math.max(100, Math.round(cropW * scale));
+      const h = Math.max(40, Math.round(cropH * scale));
 
       const canvas = document.createElement("canvas");
       const ctx = canvas.getContext("2d", { willReadFrequently: true });
@@ -698,13 +757,9 @@ function preprocessImage(file) {
       const data = imageData.data;
 
       for (let i = 0; i < data.length; i += 4) {
-        const r = data[i];
-        const g = data[i + 1];
-        const b = data[i + 2];
-
-        let gray = 0.299 * r + 0.587 * g + 0.114 * b;
-        gray = (gray - 128) * 1.2 + 128;
-        gray = gray + 6;
+        let gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+        gray = (gray - 128) * 1.15 + 128;
+        gray = gray + 8;
         gray = Math.max(0, Math.min(255, gray));
 
         data[i] = gray;
@@ -715,13 +770,11 @@ function preprocessImage(file) {
 
       ctx.putImageData(imageData, 0, 0);
 
-      const stripCanvas = extractDutyStrip(canvas);
-
       resolve({
         fullCanvas: canvas,
-        stripCanvas,
+        stripCanvas: canvas,
         fullDataUrl: canvas.toDataURL("image/png"),
-        stripDataUrl: stripCanvas.toDataURL("image/png")
+        stripDataUrl: canvas.toDataURL("image/png")
       });
     };
 
@@ -729,34 +782,9 @@ function preprocessImage(file) {
   });
 }
 
-function extractDutyStrip(srcCanvas){
-  const sw = srcCanvas.width;
-  const sh = srcCanvas.height;
-
-  // タップ方式用：画像内の勤務行だけを少し下寄りに取る
-  const sx = Math.round(sw * 0.18);
-  const sy = Math.round(sh * 0.38);
-  const sw2 = Math.round(sw * 0.77);
-  const sh2 = Math.round(sh * 0.26);
-
-  const out = document.createElement("canvas");
-  const octx = out.getContext("2d", { willReadFrequently: true });
-  out.width = sw2;
-  out.height = sh2;
-
-  octx.drawImage(srcCanvas, sx, sy, sw2, sh2, 0, 0, sw2, sh2);
-  return out;
-}
-
 async function runCellOcr(stripCanvas){
   const results = [];
   const totalDays = 31;
-
-  const topIgnore = Math.round(stripCanvas.height * 0.25);
-  const rowHeight = Math.round(stripCanvas.height * 0.60);
-  const usableY = Math.min(topIgnore, stripCanvas.height - 1);
-  const usableH = Math.max(20, Math.min(rowHeight, stripCanvas.height - usableY));
-
   const cellW = stripCanvas.width / totalDays;
 
   for(let day = 1; day <= totalDays; day++){
@@ -768,11 +796,11 @@ async function runCellOcr(stripCanvas){
     const cctx = cellCanvas.getContext("2d", { willReadFrequently: true });
 
     cellCanvas.width = cw * 6;
-    cellCanvas.height = usableH * 6;
+    cellCanvas.height = stripCanvas.height * 6;
 
     cctx.drawImage(
       stripCanvas,
-      sx, usableY, cw, usableH,
+      sx, 0, cw, stripCanvas.height,
       0, 0, cellCanvas.width, cellCanvas.height
     );
 
@@ -781,7 +809,7 @@ async function runCellOcr(stripCanvas){
 
     for(let i = 0; i < data.length; i += 4){
       let gray = 0.299 * data[i] + 0.587 * data[i+1] + 0.114 * data[i+2];
-      gray = gray > 175 ? 255 : 0;
+      gray = gray > 180 ? 255 : 0;
       data[i] = gray;
       data[i+1] = gray;
       data[i+2] = gray;
