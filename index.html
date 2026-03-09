@@ -16,7 +16,7 @@
     }
     header { padding:16px; background:#fff; border-bottom:1px solid var(--line); }
     h1 { margin:0; font-size:18px; }
-    main { padding:16px; display:grid; gap:12px; max-width:920px; margin:0 auto; }
+    main { padding:16px; display:grid; gap:12px; max-width:980px; margin:0 auto; }
     .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px; }
     .row { display:flex; justify-content:space-between; gap:10px; font-size:14px; align-items:center; flex-wrap:wrap; }
     .label { color:var(--muted); }
@@ -55,7 +55,7 @@
     .small{ font-size:12px; color:var(--muted); }
 
     .two-col { display:grid; grid-template-columns: 1fr; gap:10px; }
-    @media (min-width: 900px){
+    @media (min-width: 980px){
       .two-col { grid-template-columns: 1fr 1fr; }
     }
 
@@ -92,6 +92,14 @@
     .img-preview {
       width:100%;
       max-height:280px;
+      object-fit:contain;
+      border:1px solid var(--line);
+      border-radius:12px;
+      background:#fff;
+    }
+    .cell-strip {
+      width:100%;
+      max-height:220px;
       object-fit:contain;
       border:1px solid var(--line);
       border-radius:12px;
@@ -138,10 +146,10 @@
   </div>
 
   <div class="card">
-    <div style="font-weight:900">写メ → OCR（勤務表帯切り出し版）</div>
+    <div style="font-weight:900">写メ → OCR（31分割セル読取版）</div>
     <div class="note" style="margin-top:6px;">
       画像は外部に送信しません（端末内でOCR）。<br>
-      勤務表の「日付＋勤務」が並ぶ帯を広めに切り出してからOCRします。
+      勤務表の帯を切り出し、1日ごとのセルに分割して個別OCRします。
     </div>
 
     <div class="grid" style="margin-top:10px;">
@@ -158,14 +166,18 @@
         <div class="preview-wrap">
           <div class="small" style="font-weight:900; color:#111827;">補正後画像</div>
           <img id="processedPreview" class="img-preview" alt="補正後画像プレビュー" />
-          <div class="small" style="font-weight:900; color:#111827;">OCR生テキスト</div>
-          <textarea id="ocrText" placeholder="ここにOCR結果が出ます（確認用）"></textarea>
+
+          <div class="small" style="font-weight:900; color:#111827;">セル切り出し帯</div>
+          <img id="stripPreview" class="cell-strip" alt="セル切り出し帯プレビュー" />
+
+          <div class="small" style="font-weight:900; color:#111827;">OCR生テキスト（セルごと）</div>
+          <textarea id="ocrText" placeholder="ここにセルごとのOCR結果が出ます（確認用）"></textarea>
         </div>
 
         <div>
           <div class="small" style="font-weight:900; color:#111827;">抽出結果（日付＋行路名）</div>
           <div class="note" style="margin-top:4px;">
-            M/D形式を優先し、足りない分は「日＋直後」「近傍」で補います。<br>
+            31セルを1日ずつOCRし、行路名っぽいものを拾います。<br>
             「ー」は休み誤認識が多いので抽出しません。
           </div>
           <div id="extractArea" class="note" style="margin-top:8px;">まだ抽出がありません。</div>
@@ -232,6 +244,7 @@ const ocrStatus = document.getElementById("ocrStatus");
 const ocrBar = document.getElementById("ocrBar");
 const ocrText = document.getElementById("ocrText");
 const processedPreview = document.getElementById("processedPreview");
+const stripPreview = document.getElementById("stripPreview");
 
 const extractArea = document.getElementById("extractArea");
 const btnApplyExtract = document.getElementById("btnApplyExtract");
@@ -451,35 +464,19 @@ btnOcr.addEventListener("click", async () => {
     return;
   }
 
-  setOcrUi(true, "OCR準備中…", 1);
+  setOcrUi(true, "画像補正中…", 1);
 
   try{
-    const processed = await preprocessImage(f);
-    processedPreview.src = processed;
+    const prep = await preprocessImage(f);
+    processedPreview.src = prep.fullDataUrl;
+    stripPreview.src = prep.stripDataUrl;
 
-    setOcrUi(true, "OCR実行中…（最初は少し時間がかかります）", 5);
+    setOcrUi(true, "セル分割OCR中…", 5);
 
-    const result = await Tesseract.recognize(
-      processed,
-      "jpn+eng",
-      {
-        logger: (m) => {
-          if (m.status) {
-            const p = (typeof m.progress === "number") ? m.progress : null;
-            if (p !== null) setOcrUi(true, `${m.status}`, Math.floor(p * 100));
-            else setOcrUi(true, `${m.status}`, null);
-          }
-        },
-        workerPath: "https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/worker.min.js",
-        corePath: "https://cdn.jsdelivr.net/npm/tesseract.js-core@5/tesseract-core.wasm.js",
-        langPath: "https://tessdata.projectnaptha.com/4.0.0"
-      }
-    );
+    const cellResults = await runCellOcr(prep.stripCanvas);
+    ocrText.value = cellResults.map(r => `${r.day}: ${r.raw || "(空)"}`).join("\n");
 
-    const text = (result?.data?.text ?? "").trim();
-    ocrText.value = text;
-
-    extractRows = extractFromOcrText(text);
+    extractRows = buildRowsFromCellResults(cellResults);
     renderExtract();
 
     setOcrUi(false, "完了", 100);
@@ -499,7 +496,6 @@ function setOcrUi(running, status, percent){
   btnOcr.disabled = running || !(imgInput.files && imgInput.files[0]);
 }
 
-// ★ 勤務表の帯を広めに切り出して軽く補正
 function preprocessImage(file) {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -513,7 +509,7 @@ function preprocessImage(file) {
       const sw = img.width;
       const sh = img.height;
 
-      // 広めに残す
+      // 勤務表帯を広めに残す
       const cropX = Math.round(sw * 0.04);
       const cropY = Math.round(sh * 0.08);
       const cropW = Math.round(sw * 0.93);
@@ -556,118 +552,180 @@ function preprocessImage(file) {
 
       ctx.putImageData(imageData, 0, 0);
 
-      resolve(canvas.toDataURL("image/png"));
+      // 31セル用の帯だけさらに切り出す
+      const stripCanvas = extractDutyStrip(canvas);
+
+      resolve({
+        fullCanvas: canvas,
+        stripCanvas,
+        fullDataUrl: canvas.toDataURL("image/png"),
+        stripDataUrl: stripCanvas.toDataURL("image/png")
+      });
     };
 
     reader.readAsDataURL(file);
   });
 }
 
-function extractFromOcrText(text){
-  const t = norm(text)
-    .replaceAll("：", ":")
-    .replaceAll("／", "/")
-    .replaceAll("　", " ")
-    .replace(/\s+/g, " ");
+function extractDutyStrip(srcCanvas){
+  const sw = srcCanvas.width;
+  const sh = srcCanvas.height;
 
+  // この画像系に合わせた勤務セル帯
+  const sx = Math.round(sw * 0.19);
+  const sy = Math.round(sh * 0.22);
+  const sw2 = Math.round(sw * 0.77);
+  const sh2 = Math.round(sh * 0.28);
+
+  const out = document.createElement("canvas");
+  const octx = out.getContext("2d", { willReadFrequently: true });
+  out.width = sw2;
+  out.height = sh2;
+
+  octx.drawImage(srcCanvas, sx, sy, sw2, sh2, 0, 0, sw2, sh2);
+  return out;
+}
+
+async function runCellOcr(stripCanvas){
+  const results = [];
+  const totalDays = 31;
+
+  const topIgnore = Math.round(stripCanvas.height * 0.32);   // 見出し行を除く
+  const rowHeight = Math.round(stripCanvas.height * 0.44);   // 勤務入力帯
+  const usableY = Math.min(topIgnore, stripCanvas.height - 1);
+  const usableH = Math.max(20, Math.min(rowHeight, stripCanvas.height - usableY));
+
+  const cellW = stripCanvas.width / totalDays;
+
+  for(let day = 1; day <= totalDays; day++){
+    const sx = Math.round((day - 1) * cellW);
+    const ex = Math.round(day * cellW);
+    const cw = Math.max(8, ex - sx);
+
+    const cellCanvas = document.createElement("canvas");
+    const cctx = cellCanvas.getContext("2d", { willReadFrequently: true });
+
+    // 横方向だけ少し拡大
+    cellCanvas.width = cw * 5;
+    cellCanvas.height = usableH * 5;
+
+    cctx.drawImage(
+      stripCanvas,
+      sx, usableY, cw, usableH,
+      0, 0, cellCanvas.width, cellCanvas.height
+    );
+
+    const imageData = cctx.getImageData(0, 0, cellCanvas.width, cellCanvas.height);
+    const data = imageData.data;
+
+    // 軽い2値化
+    for(let i = 0; i < data.length; i += 4){
+      let gray = 0.299 * data[i] + 0.587 * data[i+1] + 0.114 * data[i+2];
+      gray = gray > 170 ? 255 : 0;
+      data[i] = gray;
+      data[i+1] = gray;
+      data[i+2] = gray;
+      data[i+3] = 255;
+    }
+    cctx.putImageData(imageData, 0, 0);
+
+    const result = await Tesseract.recognize(
+      cellCanvas.toDataURL("image/png"),
+      "jpn+eng",
+      {
+        logger: (m) => {
+          if (m.status && typeof m.progress === "number") {
+            const base = 5;
+            const range = 95;
+            const progress = Math.floor(base + ((day - 1 + m.progress) / totalDays) * range);
+            setOcrUi(true, `${day}日セル OCR中…`, progress);
+          }
+        },
+        workerPath: "https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/worker.min.js",
+        corePath: "https://cdn.jsdelivr.net/npm/tesseract.js-core@5/tesseract-core.wasm.js",
+        langPath: "https://tessdata.projectnaptha.com/4.0.0"
+      }
+    );
+
+    const raw = norm(result?.data?.text ?? "");
+    results.push({
+      day,
+      raw,
+      duty: normalizeDutyCandidate(raw)
+    });
+  }
+
+  return results;
+}
+
+function normalizeDutyCandidate(raw){
+  let s = norm(raw);
+  if(!s) return "";
+
+  s = s
+    .replaceAll("　", "")
+    .replace(/\s+/g, "")
+    .replaceAll("一", "-")
+    .replaceAll("―", "-")
+    .replaceAll("—", "-")
+    .replaceAll("－", "-")
+    .replaceAll("ー", "-")
+    .replaceAll("O", "0")
+    .replaceAll("o", "0")
+    .replaceAll("I", "1")
+    .replaceAll("l", "1");
+
+  // 休み語
+  for(const word of OFF_WORDS){
+    if(s.includes(word)) return word;
+  }
+
+  // 臨xxxx
+  const rin = s.match(/臨\d{2,4}/);
+  if(rin) return rin[0];
+
+  // 変xxx / 変7d
+  const hen = s.match(/変(?:\d{1,4}(?:-\d{1,2})?|7d|7D|\d+[A-Za-z])/);
+  if(hen) return hen[0].replace("7D", "7d");
+
+  // 数字-数字
+  const codeDash = s.match(/\d{2,4}-\d{1,2}/);
+  if(codeDash) return codeDash[0];
+
+  // 数字+英字
+  const codeAlpha = s.match(/\d{1,4}[A-Za-z]/);
+  if(codeAlpha) return codeAlpha[0];
+
+  // 数字のみ
+  const codeNum = s.match(/\d{2,4}/);
+  if(codeNum) return codeNum[0];
+
+  // ダッシュだけは採用しない
+  if(isDashLike(s)) return "";
+
+  return s;
+}
+
+function buildRowsFromCellResults(cellResults){
   const rows = [];
 
-  const looksDuty = (duty) => {
-    const s = norm(duty);
-    if(!s) return false;
-    if(isLikelyTimeToken(s)) return false;
-    if(OFF_WORDS.has(s)) return true;
-    if(isDashLike(s)) return false;
+  for(const r of cellResults){
+    if(!r.duty) continue;
 
-    return (
-      s.startsWith("臨") ||
-      s.startsWith("変") ||
-      /^[0-9]{2,4}(-[0-9]{1,2})?$/.test(s) ||
-      /^[0-9]{1,4}[A-Za-z]$/i.test(s)
-    );
-  };
-
-  const reMD = /(\d{1,2})\/(\d{1,2})\s*[:：]?\s*([^\s]+)/g;
-  let m;
-  while((m = reMD.exec(t)) !== null){
-    const month = Number(m[1]);
-    const day = Number(m[2]);
-    const duty = norm(m[3]);
-
-    const ym = monthInput.value;
-    const [_, selectedM] = ym.split("-").map(Number);
-    if(month !== selectedM) continue;
-
-    const date = ymdFromDay(day);
+    const date = ymdFromDay(r.day);
     if(!date) continue;
-    if(isDashLike(duty)) continue;
-    if(!looksDuty(duty)) continue;
 
-    rows.push({ include:true, date, duty, reason:"M/D形式" });
+    if(isDashLike(r.duty)) continue;
+
+    rows.push({
+      include: true,
+      date,
+      duty: r.duty,
+      reason: "31分割セルOCR"
+    });
   }
 
-  const reD = /(?:^| )(\d{1,2})(?:日)?\s*[:：]?\s*([^\s]+)/g;
-  while((m = reD.exec(t)) !== null){
-    const day = Number(m[1]);
-    const duty = norm(m[2]);
-
-    const date = ymdFromDay(day);
-    if(!date) continue;
-    if(rows.some(r => r.date === date)) continue;
-    if(isDashLike(duty)) continue;
-    if(!looksDuty(duty)) continue;
-
-    rows.push({ include:true, date, duty, reason:"日＋直後" });
-  }
-
-  const tokens = t.split(/[\s,;]+/g).map(s => norm(s)).filter(Boolean);
-  const hasDate = (date) => rows.some(r => r.date === date);
-
-  for(let i = 0; i < tokens.length; i++){
-    const md = tokens[i].match(/^(\d{1,2})$/) || tokens[i].match(/^(\d{1,2})日$/);
-    if(!md) continue;
-
-    const day = Number(md[1]);
-    if(!(day >= 1 && day <= 31)) continue;
-
-    const date = ymdFromDay(day);
-    if(!date) continue;
-    if(hasDate(date)) continue;
-
-    const start = Math.max(0, i - 12);
-    const end = Math.min(tokens.length - 1, i + 12);
-
-    let picked = null;
-    for(let j = start; j <= end; j++){
-      if(j === i) continue;
-      const cand = tokens[j];
-      if(isDashLike(cand)) continue;
-      if(looksDuty(cand)){
-        picked = cand;
-        break;
-      }
-    }
-
-    if(picked){
-      rows.push({ include:true, date, duty:norm(picked), reason:"近傍（保険）" });
-    }
-  }
-
-  const priority = (reason) => {
-    if(reason === "M/D形式") return 3;
-    if(reason === "日＋直後") return 2;
-    return 1;
-  };
-
-  const map = new Map();
-  for(const r of rows){
-    const prev = map.get(r.date);
-    if(!prev || priority(r.reason) > priority(prev.reason)){
-      map.set(r.date, r);
-    }
-  }
-
-  return [...map.values()].sort((a,b) => a.date.localeCompare(b.date));
+  return rows;
 }
 
 function renderExtract(){
@@ -685,7 +743,7 @@ function renderExtract(){
           <th style="width:48px;">反映</th>
           <th>日付</th>
           <th>行路名</th>
-          <th style="width:110px;">根拠</th>
+          <th style="width:140px;">根拠</th>
         </tr>
       </thead>
       <tbody>
