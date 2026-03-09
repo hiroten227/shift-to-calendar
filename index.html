@@ -67,7 +67,47 @@
     .table th, .table td {
       border-top: 1px solid var(--line);
       padding: 8px;
-      vertical
+      vertical-align: top;
+    }
+    .table th { text-align:left; color: var(--muted); font-weight: 700; }
+    .chk { transform: scale(1.2); }
+
+    .progress {
+      height: 10px;
+      background: #eef2ff;
+      border: 1px solid #e5e7eb;
+      border-radius: 999px;
+      overflow: hidden;
+    }
+    .progress > div{
+      height: 100%;
+      width: 0%;
+      background: #111827;
+    }
+
+    .preview-wrap {
+      display:grid;
+      gap:10px;
+    }
+    .img-preview {
+      width:100%;
+      max-height:280px;
+      object-fit:contain;
+      border:1px solid var(--line);
+      border-radius:12px;
+      background:#fff;
+    }
+    .cell-strip {
+      width:100%;
+      max-height:220px;
+      object-fit:contain;
+      border:1px solid var(--line);
+      border-radius:12px;
+      background:#fff;
+    }
+  </style>
+</head>
+
 <body>
 <header>
   <h1>勤務シフト → Googleカレンダー</h1>
@@ -106,10 +146,10 @@
   </div>
 
   <div class="card">
-    <div style="font-weight:900">写メ → OCR（31分割セル読取版）</div>
+    <div style="font-weight:900">写メ → OCR（31分割セル読取版＋deskew）</div>
     <div class="note" style="margin-top:6px;">
       画像は外部に送信しません（端末内でOCR）。<br>
-      勤務表の帯を切り出し、1日ごとのセルに分割して個別OCRします。
+      勤務表の帯を切り出し、軽く傾き補正して、1日ごとのセルに分割して個別OCRします。
     </div>
 
     <div class="grid" style="margin-top:10px;">
@@ -133,6 +173,57 @@
           <div class="small" style="font-weight:900; color:#111827;">OCR生テキスト（セルごと）</div>
           <textarea id="ocrText" placeholder="ここにセルごとのOCR結果が出ます（確認用）"></textarea>
         </div>
+
+        <div>
+          <div class="small" style="font-weight:900; color:#111827;">抽出結果（日付＋行路名）</div>
+          <div class="note" style="margin-top:4px;">
+            31セルを1日ずつOCRし、行路名っぽいものを拾います。<br>
+            「ー」は休み誤認識が多いので抽出しません。
+          </div>
+          <div id="extractArea" class="note" style="margin-top:8px;">まだ抽出がありません。</div>
+          <div class="grid" style="margin-top:10px;">
+            <button id="btnApplyExtract" type="button" class="btn-sub" disabled>チェックした分をプレビューに反映</button>
+            <button id="btnClearExtract" type="button" class="btn-sub" disabled>抽出結果を消す</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div style="font-weight:900">手入力（補助・OCR漏れ用）</div>
+    <div class="note" style="margin-top:6px;">
+      OCRで拾えなかった分だけ補完できます。例：<span class="mono">401</span> / <span class="mono">臨1900</span> / <span class="mono">変401</span> / <span class="mono">変7d</span> / <span class="mono">公休日</span>
+    </div>
+    <div class="grid" style="margin-top:10px;">
+      <input id="dateInput" type="date" />
+      <input id="dutyInput" type="text" placeholder="行路名（401 / 臨1900 / 変401 / 変7d / 公休日 / 年休 など）" />
+      <button id="btnAdd" type="button">追加</button>
+      <button id="btnClear" type="button" class="btn-sub">全消去</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div style="font-weight:900">CSV出力（Googleカレンダー用）</div>
+    <div class="note" style="margin-top:6px;">
+      Googleカレンダー → 設定 → インポート で取り込めます。<br>
+      ※⚠（臨/変/未登録）は「終日予定（下書き）」として出力します。<br>
+      ※非番（-）・休み（公休日/特休日/育短日/年休）は出力しません。
+    </div>
+    <div class="grid" style="margin-top:10px;">
+      <button id="btnDownload" type="button" disabled>CSVをダウンロード</button>
+      <button id="btnCopyCsv" type="button" class="btn-sub" disabled>CSVをクリップボードにコピー</button>
+    </div>
+    <div class="note" id="csvHint"></div>
+  </div>
+
+  <div class="card">
+    <div style="font-weight:900">プレビュー</div>
+    <div id="previewArea" class="note">まだ入力がありません。</div>
+  </div>
+
+</main>
+
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
 <script>
@@ -229,6 +320,182 @@ function ymdFromDay(day){
   if(dt.getMonth() !== (m - 1)) return null;
   return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
 }
+
+fetch("master.json")
+  .then(r => {
+    if(!r.ok) throw new Error("master.jsonが読めません");
+    return r.json();
+  })
+  .then(j => {
+    master = j;
+    masterLabel.textContent = j?.meta?.name ?? "勤務マスタ";
+    renderAll();
+  })
+  .catch(err => {
+    console.error(err);
+    masterLabel.textContent = "勤務マスタ読み込み失敗";
+    renderAll();
+  });
+
+function classifyDuty(raw){
+  const d = norm(raw);
+  if(d === "") return {kind:"invalid", label:"未入力", duty:""};
+  if(isDashLike(d)) return {kind:"off", label:"非番（出力なし）", duty:"-"};
+  if(OFF_WORDS.has(d)) return {kind:"off", label:"休み（出力なし）", duty:d};
+
+  const duties = master?.duties ?? {};
+  if(Object.prototype.hasOwnProperty.call(duties, d)){
+    const def = duties[d];
+    if(def?.off) return {kind:"off", label:"非番/休み（出力なし）", duty:d};
+    return {kind:"auto", label:"自動（時刻付き）", duty:d, def};
+  }
+  return {kind:"draft", label:"下書き（終日）", duty:d};
+}
+
+function fmtTime(def){
+  if(!def) return "";
+  return `${def.start} → ${def.end}${def.overnight ? "（翌日）" : ""}`;
+}
+
+function csvEscape(value){
+  const s = (value ?? "").toString();
+  if (/[",\n]/.test(s)) return `"${s.replaceAll('"', '""')}"`;
+  return s;
+}
+
+function buildCsv(){
+  const sorted = [...items].sort((a,b)=> a.date.localeCompare(b.date));
+  const rows = [];
+  rows.push(["Subject","Start Date","Start Time","End Date","End Time","All Day Event","Description"]);
+
+  for(const it of sorted){
+    const c = classifyDuty(it.duty);
+    if(c.kind === "invalid" || c.kind === "off") continue;
+
+    if(c.kind === "auto"){
+      const startDate = it.date;
+      const endDate = c.def?.overnight ? addDaysYYYYMMDD(it.date, 1) : it.date;
+      rows.push([
+        c.duty,
+        toYMDslash(startDate),
+        c.def.start ?? "",
+        toYMDslash(endDate),
+        c.def.end ?? "",
+        "False",
+        ""
+      ]);
+    } else {
+      rows.push([
+        c.duty,
+        toYMDslash(it.date),
+        "",
+        toYMDslash(it.date),
+        "",
+        "True",
+        DRAFT_DESCRIPTION
+      ]);
+    }
+  }
+
+  return rows.map(cols => cols.map(csvEscape).join(",")).join("\n");
+}
+
+function downloadText(filename, text){
+  const blob = new Blob([text], {type:"text/csv;charset=utf-8"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+function upsertItem(date, duty){
+  const idx = items.findIndex(x => x.date === date);
+  if(idx >= 0) items[idx] = {date, duty};
+  else items.push({date, duty});
+}
+
+btnAdd.onclick = () => {
+  const date = dateInput.value;
+  const duty = norm(dutyInput.value);
+  if(!date) return alert("日付を入れてください");
+  if(!duty) return alert("行路名を入れてください");
+  upsertItem(date, duty);
+  dutyInput.value = "";
+  renderAll();
+};
+
+btnClear.onclick = () => {
+  if(confirm("入力した内容を全て消します。よろしいですか？")){
+    items = [];
+    renderAll();
+  }
+};
+
+btnDownload.onclick = () => {
+  const csv = buildCsv();
+  const ym = monthInput.value || "shift";
+  downloadText(`shift_${ym}.csv`, csv);
+};
+
+btnCopyCsv.onclick = async () => {
+  try{
+    const csv = buildCsv();
+    await navigator.clipboard.writeText(csv);
+    alert("CSVをコピーしました。");
+  }catch(e){
+    alert("コピーできませんでした。ダウンロードをご利用ください。");
+  }
+};
+
+imgInput.addEventListener("change", () => {
+  btnOcr.disabled = !(imgInput.files && imgInput.files[0]);
+});
+
+btnOcr.addEventListener("click", async () => {
+  const f = imgInput.files?.[0];
+  if(!f) return;
+
+  if(!monthInput.value){
+    alert("先に対象月を選んでください（例：2026-03）");
+    return;
+  }
+
+  setOcrUi(true, "画像補正中…", 1);
+
+  try{
+    const prep = await preprocessImage(f);
+    processedPreview.src = prep.fullDataUrl;
+    stripPreview.src = prep.stripDataUrl;
+
+    setOcrUi(true, "セル分割OCR中…", 5);
+
+    const cellResults = await runCellOcr(prep.stripCanvas);
+    ocrText.value = cellResults.map(r => `${r.day}: ${r.raw || "(空)"}`).join("\n");
+
+    extractRows = buildRowsFromCellResults(cellResults);
+    renderExtract();
+
+    setOcrUi(false, "完了", 100);
+    renderAll();
+  }catch(e){
+    console.error(e);
+    setOcrUi(false, "失敗（撮り直し推奨）", 0);
+    alert("OCRに失敗しました。画像を明るく・まっすぐ撮って再試行してください。");
+  }
+});
+
+function setOcrUi(running, status, percent){
+  ocrStatus.textContent = status ?? "";
+  if(typeof percent === "number"){
+    ocrBar.style.width = `${Math.max(0, Math.min(100, percent))}%`;
+  }
+  btnOcr.disabled = running || !(imgInput.files && imgInput.files[0]);
+}
+
 function preprocessImage(file) {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -242,7 +509,6 @@ function preprocessImage(file) {
       const sw = img.width;
       const sh = img.height;
 
-      // 勤務表帯を広めに残す
       const cropX = Math.round(sw * 0.04);
       const cropY = Math.round(sh * 0.08);
       const cropW = Math.round(sw * 0.93);
@@ -267,7 +533,6 @@ function preprocessImage(file) {
       const imageData = ctx.getImageData(0, 0, w, h);
       const data = imageData.data;
 
-      // ★ グレースケール + 軽い補正
       for (let i = 0; i < data.length; i += 4) {
         const r = data[i];
         const g = data[i + 1];
@@ -286,10 +551,7 @@ function preprocessImage(file) {
 
       ctx.putImageData(imageData, 0, 0);
 
-      // ★★★ deskew（傾き補正）を適用 ★★★
       const deskewed = deskewImage(canvas);
-
-      // 31セル用の帯を deskew 後の画像から切り出す
       const stripCanvas = extractDutyStrip(deskewed);
 
       resolve({
@@ -304,37 +566,48 @@ function preprocessImage(file) {
   });
 }
 
-
-// ★ 軽量 deskew（縦線ベース）
+// ★ 実際に角度ごとに回転して採点する軽量 deskew
 function deskewImage(srcCanvas) {
-  const tmp = document.createElement("canvas");
-  const tctx = tmp.getContext("2d");
+  const sample = document.createElement("canvas");
+  const sctx = sample.getContext("2d");
 
-  // 小さくして高速化
-  const scale = 600 / srcCanvas.width;
-  tmp.width = 600;
-  tmp.height = Math.round(srcCanvas.height * scale);
-  tctx.drawImage(srcCanvas, 0, 0, tmp.width, tmp.height);
-
-  const imgData = tctx.getImageData(0, 0, tmp.width, tmp.height);
-  const data = imgData.data;
+  const scale = Math.min(1, 600 / srcCanvas.width);
+  sample.width = Math.round(srcCanvas.width * scale);
+  sample.height = Math.round(srcCanvas.height * scale);
+  sctx.drawImage(srcCanvas, 0, 0, sample.width, sample.height);
 
   let bestAngle = 0;
   let bestScore = -Infinity;
 
-  // -10°〜+10° を 0.5° 刻みで探索
-  for (let angle = -10; angle <= 10; angle += 0.5) {
-    let score = 0;
+  for (let angle = -5; angle <= 5; angle += 0.5) {
+    const test = document.createElement("canvas");
+    const tctx = test.getContext("2d");
+    test.width = sample.width;
+    test.height = sample.height;
 
-    // ★ 縦方向の濃淡変化を測る（勤務表は縦線が強い）
-    for (let x = 0; x < tmp.width; x += 4) {
-      let prev = null;
-      for (let y = 0; y < tmp.height; y += 4) {
-        const idx = (y * tmp.width + x) * 4;
-        const gray = data[idx];
-        if (prev !== null) score -= Math.abs(gray - prev);
-        prev = gray;
+    tctx.fillStyle = "#fff";
+    tctx.fillRect(0, 0, test.width, test.height);
+
+    tctx.translate(test.width / 2, test.height / 2);
+    tctx.rotate(angle * Math.PI / 180);
+    tctx.drawImage(sample, -sample.width / 2, -sample.height / 2);
+
+    const imgData = tctx.getImageData(0, 0, test.width, test.height).data;
+
+    let rowSums = [];
+    for (let y = 0; y < test.height; y += 2) {
+      let sum = 0;
+      for (let x = 0; x < test.width; x += 2) {
+        const idx = (y * test.width + x) * 4;
+        const gray = imgData[idx];
+        sum += (255 - gray);
       }
+      rowSums.push(sum);
+    }
+
+    let score = 0;
+    for (let i = 1; i < rowSums.length; i++) {
+      score += Math.abs(rowSums[i] - rowSums[i - 1]);
     }
 
     if (score > bestScore) {
@@ -343,25 +616,20 @@ function deskewImage(srcCanvas) {
     }
   }
 
-  // 本番画像を bestAngle で回転
   const out = document.createElement("canvas");
   const octx = out.getContext("2d");
+  out.width = srcCanvas.width;
+  out.height = srcCanvas.height;
 
-  const w = srcCanvas.width;
-  const h = srcCanvas.height;
-
-  out.width = w;
-  out.height = h;
-
-  octx.translate(w / 2, h / 2);
+  octx.fillStyle = "#fff";
+  octx.fillRect(0, 0, out.width, out.height);
+  octx.translate(out.width / 2, out.height / 2);
   octx.rotate(bestAngle * Math.PI / 180);
-  octx.drawImage(srcCanvas, -w / 2, -h / 2);
+  octx.drawImage(srcCanvas, -srcCanvas.width / 2, -srcCanvas.height / 2);
 
   return out;
 }
 
-
-// ★ deskew 後の画像から勤務帯を切り出す
 function extractDutyStrip(srcCanvas){
   const sw = srcCanvas.width;
   const sh = srcCanvas.height;
@@ -379,12 +647,13 @@ function extractDutyStrip(srcCanvas){
   octx.drawImage(srcCanvas, sx, sy, sw2, sh2, 0, 0, sw2, sh2);
   return out;
 }
+
 async function runCellOcr(stripCanvas){
   const results = [];
   const totalDays = 31;
 
-  const topIgnore = Math.round(stripCanvas.height * 0.32);   // 見出し行を除く
-  const rowHeight = Math.round(stripCanvas.height * 0.44);   // 勤務入力帯
+  const topIgnore = Math.round(stripCanvas.height * 0.32);
+  const rowHeight = Math.round(stripCanvas.height * 0.44);
   const usableY = Math.min(topIgnore, stripCanvas.height - 1);
   const usableH = Math.max(20, Math.min(rowHeight, stripCanvas.height - usableY));
 
@@ -398,7 +667,6 @@ async function runCellOcr(stripCanvas){
     const cellCanvas = document.createElement("canvas");
     const cctx = cellCanvas.getContext("2d", { willReadFrequently: true });
 
-    // 横方向だけ少し拡大
     cellCanvas.width = cw * 5;
     cellCanvas.height = usableH * 5;
 
@@ -411,7 +679,6 @@ async function runCellOcr(stripCanvas){
     const imageData = cctx.getImageData(0, 0, cellCanvas.width, cellCanvas.height);
     const data = imageData.data;
 
-    // ★ 軽い2値化（高速）
     for(let i = 0; i < data.length; i += 4){
       let gray = 0.299 * data[i] + 0.587 * data[i+1] + 0.114 * data[i+2];
       gray = gray > 170 ? 255 : 0;
@@ -451,8 +718,6 @@ async function runCellOcr(stripCanvas){
   return results;
 }
 
-
-// ★ OCR誤認識を補正しつつ行路名候補を抽出
 function normalizeDutyCandidate(raw){
   let s = norm(raw);
   if(!s) return "";
@@ -470,39 +735,30 @@ function normalizeDutyCandidate(raw){
     .replaceAll("I", "1")
     .replaceAll("l", "1");
 
-  // 休み語
   for(const word of OFF_WORDS){
     if(s.includes(word)) return word;
   }
 
-  // 臨xxxx
   const rin = s.match(/臨\d{2,4}/);
   if(rin) return rin[0];
 
-  // 変xxx / 変7d
   const hen = s.match(/変(?:\d{1,4}(?:-\d{1,2})?|7d|7D|\d+[A-Za-z])/);
   if(hen) return hen[0].replace("7D", "7d");
 
-  // 数字-数字
   const codeDash = s.match(/\d{2,4}-\d{1,2}/);
   if(codeDash) return codeDash[0];
 
-  // 数字+英字
   const codeAlpha = s.match(/\d{1,4}[A-Za-z]/);
   if(codeAlpha) return codeAlpha[0];
 
-  // 数字のみ
   const codeNum = s.match(/\d{2,4}/);
   if(codeNum) return codeNum[0];
 
-  // ダッシュだけは採用しない
   if(isDashLike(s)) return "";
 
   return s;
 }
 
-
-// ★ 31セルOCR結果 → 抽出行に変換
 function buildRowsFromCellResults(cellResults){
   const rows = [];
 
@@ -524,6 +780,7 @@ function buildRowsFromCellResults(cellResults){
 
   return rows;
 }
+
 function renderExtract(){
   if(!extractRows.length){
     extractArea.innerHTML = "まだ抽出がありません。";
@@ -545,13 +802,9 @@ function renderExtract(){
       <tbody>
         ${extractRows.map((r, idx) => `
           <tr>
-            <td>
-              <input class="chk" type="checkbox" data-idx="${idx}" ${r.include ? "checked" : ""}>
-            </td>
+            <td><input class="chk" type="checkbox" data-idx="${idx}" ${r.include ? "checked" : ""}></td>
             <td class="mono">${escapeHtml(r.date)}</td>
-            <td>
-              <input type="text" data-duty="${idx}" value="${escapeHtml(r.duty)}">
-            </td>
+            <td><input type="text" data-duty="${idx}" value="${escapeHtml(r.duty)}" /></td>
             <td class="small">${escapeHtml(r.reason)}</td>
           </tr>
         `).join("")}
@@ -559,10 +812,8 @@ function renderExtract(){
     </table>
     <div class="note">※行路名が違う場合は、この表で直してから反映してください。</div>
   `;
-
   extractArea.innerHTML = html;
 
-  // チェックボックス
   extractArea.querySelectorAll('input[type="checkbox"][data-idx]').forEach(cb => {
     cb.addEventListener("change", (e) => {
       const i = Number(e.target.getAttribute("data-idx"));
@@ -571,7 +822,6 @@ function renderExtract(){
     });
   });
 
-  // duty 編集欄
   extractArea.querySelectorAll('input[type="text"][data-duty]').forEach(inp => {
     inp.addEventListener("input", (e) => {
       const i = Number(e.target.getAttribute("data-duty"));
