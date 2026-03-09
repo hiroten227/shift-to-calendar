@@ -141,7 +141,7 @@
     <div style="font-weight:900">写メ → OCR（勤務表帯切り出し版）</div>
     <div class="note" style="margin-top:6px;">
       画像は外部に送信しません（端末内でOCR）。<br>
-      勤務表の「日付＋勤務」が並ぶ帯だけを自動で切り出してからOCRします。
+      勤務表の「日付＋勤務」が並ぶ帯を広めに切り出してからOCRします。
     </div>
 
     <div class="grid" style="margin-top:10px;">
@@ -499,7 +499,7 @@ function setOcrUi(running, status, percent){
   btnOcr.disabled = running || !(imgInput.files && imgInput.files[0]);
 }
 
-// ★ 勤務表の帯だけ切り出して軽く補正
+// ★ 勤務表の帯を広めに切り出して軽く補正
 function preprocessImage(file) {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -513,13 +513,13 @@ function preprocessImage(file) {
       const sw = img.width;
       const sh = img.height;
 
-      // この種類の勤務表向けの切り出し
-      const cropX = Math.round(sw * 0.15);
-      const cropY = Math.round(sh * 0.18);
-      const cropW = Math.round(sw * 0.82);
-      const cropH = Math.round(sh * 0.30);
+      // 広めに残す
+      const cropX = Math.round(sw * 0.04);
+      const cropY = Math.round(sh * 0.08);
+      const cropW = Math.round(sw * 0.93);
+      const cropH = Math.round(sh * 0.34);
 
-      const maxSize = 2400;
+      const maxSize = 3200;
       const scale = Math.min(1, maxSize / Math.max(cropW, cropH));
       const w = Math.round(cropW * scale);
       const h = Math.round(cropH * scale);
@@ -544,8 +544,8 @@ function preprocessImage(file) {
         const b = data[i + 2];
 
         let gray = 0.299 * r + 0.587 * g + 0.114 * b;
-        gray = (gray - 128) * 1.35 + 128;
-        gray = gray + 8;
+        gray = (gray - 128) * 1.25 + 128;
+        gray = gray + 6;
         gray = Math.max(0, Math.min(255, gray));
 
         data[i] = gray;
@@ -587,7 +587,6 @@ function extractFromOcrText(text){
     );
   };
 
-  // ① M/D形式
   const reMD = /(\d{1,2})\/(\d{1,2})\s*[:：]?\s*([^\s]+)/g;
   let m;
   while((m = reMD.exec(t)) !== null){
@@ -607,7 +606,6 @@ function extractFromOcrText(text){
     rows.push({ include:true, date, duty, reason:"M/D形式" });
   }
 
-  // ② 日＋直後
   const reD = /(?:^| )(\d{1,2})(?:日)?\s*[:：]?\s*([^\s]+)/g;
   while((m = reD.exec(t)) !== null){
     const day = Number(m[1]);
@@ -622,7 +620,6 @@ function extractFromOcrText(text){
     rows.push({ include:true, date, duty, reason:"日＋直後" });
   }
 
-  // ③ 近傍保険
   const tokens = t.split(/[\s,;]+/g).map(s => norm(s)).filter(Boolean);
   const hasDate = (date) => rows.some(r => r.date === date);
 
