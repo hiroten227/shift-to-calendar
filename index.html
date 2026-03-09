@@ -728,9 +728,9 @@ function preprocessImage(file) {
       let cropW = Math.round(selection.w * sw);
       let cropH = Math.round(selection.h * sh);
 
-      // 少し余白を足す
-      const padX = Math.round(cropW * 0.02);
-      const padY = Math.round(cropH * 0.20);
+      // 余白をかなり減らす
+      const padX = Math.round(cropW * 0.01);
+      const padY = Math.round(cropH * 0.05);
 
       cropX = Math.max(0, cropX - padX);
       cropY = Math.max(0, cropY - padY);
@@ -858,33 +858,63 @@ function normalizeDutyCandidate(raw){
     .replaceAll("—", "-")
     .replaceAll("－", "-")
     .replaceAll("ー", "-")
+    .replaceAll("]", "")
+    .replaceAll("[", "")
+    .replaceAll("|", "")
+    .replaceAll("!", "1")
+    .replaceAll("I", "1")
+    .replaceAll("l", "1")
     .replaceAll("O", "0")
     .replaceAll("o", "0")
-    .replaceAll("I", "1")
-    .replaceAll("l", "1");
+    .replaceAll("S", "5");
 
-  for(const word of OFF_WORDS){
-    if(s.includes(word)) return word;
+  for (const word of OFF_WORDS) {
+    if (s.includes(word)) return word;
   }
 
-  const rin = s.match(/臨\d{2,4}/);
-  if(rin) return rin[0];
+  let m = s.match(/変(?:\d{1,4}(?:-\d{1,2})?|7d|7D|\d+[A-Za-z])/);
+  if (m) return m[0].replace("7D", "7d");
 
-  const hen = s.match(/変(?:\d{1,4}(?:-\d{1,2})?|7d|7D|\d+[A-Za-z])/);
-  if(hen) return hen[0].replace("7D", "7d");
+  m = s.match(/臨\d{2,4}/);
+  if (m) return m[0];
 
-  const codeDash = s.match(/\d{2,4}-\d{1,2}/);
-  if(codeDash) return codeDash[0];
+  m = s.match(/\d{2,4}-\d{1,2}/);
+  if (m) {
+    let code = m[0];
+    const parts = code.split("-");
+    if (parts.length === 2) {
+      let a = parts[0];
+      const b = parts[1];
 
-  const codeAlpha = s.match(/\d{1,4}[A-Za-z]/);
-  if(codeAlpha) return codeAlpha[0];
+      if (a.length === 2 || a.length === 3) {
+        if (!a.startsWith("4") && !a.startsWith("8")) {
+          a = "4" + a;
+        }
+      }
+      code = `${a}-${b}`;
+    }
+    return code;
+  }
 
-  const codeNum = s.match(/\d{2,4}/);
-  if(codeNum) return codeNum[0];
+  m = s.match(/\d{1,4}[A-Za-z]/);
+  if (m) return m[0];
 
-  if(isDashLike(s)) return "";
+  m = s.match(/\d{2,4}/);
+  if (m) {
+    let code = m[0];
 
-  return s;
+    if (code.length <= 2) return "";
+
+    if (code.length === 3 && /^[01]\d{2}$/.test(code)) {
+      return "4" + code;
+    }
+
+    return code;
+  }
+
+  if (isDashLike(s)) return "";
+
+  return "";
 }
 
 function buildRowsFromCellResults(cellResults){
