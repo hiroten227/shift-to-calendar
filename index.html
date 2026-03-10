@@ -1,87 +1,169 @@
 <!DOCTYPE html>
-<html>
+<html lang="ja">
 <head>
-<meta charset="UTF-8">
-<title>勤務行路登録</title>
-
-<style>
-body{
-font-family:sans-serif;
-padding:20px;
-}
-
-table{
-border-collapse:collapse;
-width:100%;
-}
-
-td,th{
-border:1px solid #ccc;
-padding:8px;
-text-align:center;
-}
-
-.register{
-background:#d7f7d7;
-}
-
-.skip{
-background:#eeeeee;
-}
-
-.reject{
-background:#ffd6d6;
-}
-</style>
-
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>勤務行路登録</title>
+  <style>
+    body{
+      font-family:sans-serif;
+      padding:16px;
+      max-width:900px;
+      margin:0 auto;
+    }
+    h2{
+      margin-top:0;
+    }
+    .card{
+      border:1px solid #ccc;
+      border-radius:10px;
+      padding:12px;
+      margin-bottom:16px;
+    }
+    label{
+      display:block;
+      font-weight:bold;
+      margin-bottom:6px;
+    }
+    input, button{
+      width:100%;
+      box-sizing:border-box;
+      padding:10px;
+      font-size:16px;
+      margin-bottom:10px;
+    }
+    button{
+      cursor:pointer;
+    }
+    img{
+      max-width:100%;
+      border:1px solid #ccc;
+      border-radius:8px;
+      display:block;
+      margin-top:10px;
+    }
+    table{
+      border-collapse:collapse;
+      width:100%;
+    }
+    td,th{
+      border:1px solid #ccc;
+      padding:8px;
+      text-align:center;
+    }
+    .register{
+      background:#d7f7d7;
+    }
+    .skip{
+      background:#eeeeee;
+    }
+    .reject{
+      background:#ffd6d6;
+    }
+    .hidden{
+      display:none;
+    }
+  </style>
 </head>
-
 <body>
 
-<h2>勤務確認</h2>
+  <h2>勤務行路登録</h2>
 
-<table id="resultTable">
-<tr>
-<th>日</th>
-<th>勤務</th>
-<th>判定</th>
-<th>時刻</th>
-</tr>
-</table>
+  <div class="card">
+    <label for="targetMonth">対象月</label>
+    <input type="month" id="targetMonth" />
 
-<script>
+    <label for="imageInput">勤務表画像</label>
+    <input type="file" id="imageInput" accept="image/*" capture="environment" />
 
-const sample = [
-{date:1,normalized:"401",status:"REGISTER",start:"8:57",end:"9:06"},
-{date:2,normalized:"公休",status:"SKIP"},
-{date:3,normalized:"臨1900",status:"REGISTER",allDay:true},
-{date:4,normalized:"変7d",status:"REGISTER",start:"09:00",end:"17:45"}
-]
+    <button id="previewBtn" type="button">画像を確認</button>
 
-const table=document.getElementById("resultTable")
+    <div id="previewArea" class="hidden">
+      <p>画像プレビュー</p>
+      <img id="previewImage" alt="勤務表画像プレビュー" />
+    </div>
+  </div>
 
-sample.forEach(r=>{
+  <div class="card">
+    <button id="loadSampleBtn" type="button">サンプル結果を表示</button>
+  </div>
 
-const tr=document.createElement("tr")
+  <div class="card">
+    <h3>勤務確認</h3>
+    <table id="resultTable">
+      <tr>
+        <th>日</th>
+        <th>勤務</th>
+        <th>判定</th>
+        <th>時刻</th>
+      </tr>
+    </table>
+  </div>
 
-if(r.status==="REGISTER") tr.className="register"
-if(r.status==="SKIP") tr.className="skip"
-if(r.status==="REJECT") tr.className="reject"
+  <script>
+    const targetMonth = document.getElementById("targetMonth");
+    const imageInput = document.getElementById("imageInput");
+    const previewBtn = document.getElementById("previewBtn");
+    const previewArea = document.getElementById("previewArea");
+    const previewImage = document.getElementById("previewImage");
+    const loadSampleBtn = document.getElementById("loadSampleBtn");
+    const resultTable = document.getElementById("resultTable");
 
-const time=r.allDay ? "終日" : (r.start ? r.start+"-"+r.end : "")
+    const now = new Date();
+    targetMonth.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 
-tr.innerHTML=`
-<td>${r.date}</td>
-<td>${r.normalized}</td>
-<td>${r.status}</td>
-<td>${time}</td>
-`
+    previewBtn.addEventListener("click", () => {
+      const file = imageInput.files[0];
+      if (!file) {
+        alert("先に勤務表画像を選んでください。");
+        return;
+      }
 
-table.appendChild(tr)
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        previewImage.src = e.target.result;
+        previewArea.classList.remove("hidden");
+      };
+      reader.readAsDataURL(file);
+    });
 
-})
+    loadSampleBtn.addEventListener("click", () => {
+      const sample = [
+        {date:1, normalized:"401", status:"REGISTER", start:"8:57", end:"9:06", allDay:false},
+        {date:2, normalized:"公休", status:"SKIP", start:"", end:"", allDay:false},
+        {date:3, normalized:"臨1900", status:"REGISTER", start:"", end:"", allDay:true},
+        {date:4, normalized:"変7d", status:"REGISTER", start:"09:00", end:"17:45", allDay:false}
+      ];
 
-</script>
+      renderTable(sample);
+    });
 
+    function renderTable(items) {
+      while (resultTable.rows.length > 1) {
+        resultTable.deleteRow(1);
+      }
+
+      items.forEach(item => {
+        const tr = document.createElement("tr");
+
+        if (item.status === "REGISTER") tr.className = "register";
+        if (item.status === "SKIP") tr.className = "skip";
+        if (item.status === "REJECT") tr.className = "reject";
+
+        const timeText = item.allDay
+          ? "終日"
+          : (item.start && item.end ? `${item.start}-${item.end}` : "");
+
+        tr.innerHTML = `
+          <td>${item.date}</td>
+          <td>${item.normalized}</td>
+          <td>${item.status}</td>
+          <td>${timeText}</td>
+        `;
+
+        resultTable.appendChild(tr);
+      });
+    }
+  </script>
 </body>
 </html>
